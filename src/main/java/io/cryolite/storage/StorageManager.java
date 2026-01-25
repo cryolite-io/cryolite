@@ -47,8 +47,7 @@ public class StorageManager {
     }
 
     // Get FileIO implementation class (default: S3FileIO)
-    String ioImpl =
-        storageOptions.getOrDefault("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+    String ioImpl = storageOptions.getOrDefault("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
 
     // Create properties map from storage options (pass through all options)
     Map<String, String> properties = new HashMap<>(storageOptions);

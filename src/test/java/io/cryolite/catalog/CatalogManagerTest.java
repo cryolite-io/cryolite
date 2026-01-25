@@ -76,7 +76,8 @@ class CatalogManagerTest {
     Map<String, String> catalogOptions = createCatalogOptions();
     Map<String, String> storageOptions = createStorageOptions();
     catalogOptions.put("uri", "");
-    assertThrows(IllegalArgumentException.class, () -> new CatalogManager(catalogOptions, storageOptions));
+    assertThrows(
+        IllegalArgumentException.class, () -> new CatalogManager(catalogOptions, storageOptions));
   }
 
   @Test

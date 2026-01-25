@@ -36,7 +36,8 @@ public class CryoliteEngine {
 
     // Initialize catalog manager with both catalog and storage options
     // (catalog needs storage config for io-impl)
-    this.catalogManager = new CatalogManager(config.getCatalogOptions(), config.getStorageOptions());
+    this.catalogManager =
+        new CatalogManager(config.getCatalogOptions(), config.getStorageOptions());
 
     // Initialize storage manager with storage options
     this.storageManager = new StorageManager(config.getStorageOptions());
