@@ -138,8 +138,6 @@ cryolite/
 
 ## Milestones
 
-See `../prompts/cryolite-java.md` for the complete roadmap (M0–M31).
-
 ### Current: M0 – Project Foundation
 
 - ✅ Maven build with dependencies

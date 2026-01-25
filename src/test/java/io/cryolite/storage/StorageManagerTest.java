@@ -23,7 +23,7 @@ class StorageManagerTest {
 
     assertNotNull(manager);
     assertFalse(manager.isClosed());
-    assertNotNull(manager.getFileSystem());
+    assertNotNull(manager.getFileIO());
     assertEquals(TestConfig.getMinioWarehousePath(), manager.getWarehousePath());
     manager.close();
   }
@@ -119,7 +119,7 @@ class StorageManagerTest {
   }
 
   @Test
-  void testStorageManagerGetFileSystemWhenClosed() throws Exception {
+  void testStorageManagerGetFileIOWhenClosed() throws Exception {
     Map<String, String> options = new HashMap<>();
     StorageManager manager =
         new StorageManager(
@@ -130,7 +130,7 @@ class StorageManagerTest {
             options);
     manager.close();
 
-    assertThrows(IllegalStateException.class, manager::getFileSystem);
+    assertThrows(IllegalStateException.class, manager::getFileIO);
   }
 
   @Test

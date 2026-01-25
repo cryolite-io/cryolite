@@ -60,16 +60,23 @@
             <version>${arrow.version}</version>
         </dependency>
 
-        <!-- Hadoop for S3/MinIO storage -->
+        <!-- Iceberg AWS for S3/MinIO storage -->
         <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-common</artifactId>
-            <version>3.4.0</version>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-aws</artifactId>
+            <version>${iceberg.version}</version>
+        </dependency>
+
+        <!-- AWS SDK v2 for S3 (required by iceberg-aws) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>bundle</artifactId>
+            <version>2.29.45</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-aws</artifactId>
-            <version>3.4.0</version>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+            <version>2.29.45</version>
         </dependency>
 
         <!-- Testing -->

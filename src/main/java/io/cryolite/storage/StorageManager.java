@@ -1,21 +1,21 @@
 package io.cryolite.storage;
 
+import java.util.HashMap;
 import java.util.Map;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.iceberg.aws.s3.S3FileIO;
+import org.apache.iceberg.io.FileIO;
 
 /**
  * Manages storage connections (S3/MinIO).
  *
  * <p>Handles initialization and lifecycle of S3-compatible storage connections for Iceberg data
- * files.
+ * files using Iceberg's native S3FileIO.
  *
  * @since 0.1.0
  */
 public class StorageManager {
 
-  private final FileSystem fileSystem;
+  private final FileIO fileIO;
   private final String warehousePath;
   private volatile boolean closed = false;
 
@@ -28,7 +28,7 @@ public class StorageManager {
    * @param warehousePath the warehouse path (e.g., s3://bucket/warehouse)
    * @param storageOptions additional storage configuration options
    * @throws IllegalArgumentException if required parameters are null or empty
-   * @throws Exception if FileSystem initialization fails
+   * @throws Exception if FileIO initialization fails
    */
   public StorageManager(
       String endpoint,
@@ -46,31 +46,32 @@ public class StorageManager {
 
     this.warehousePath = warehousePath;
 
-    Configuration conf = new Configuration();
-    conf.set("fs.s3a.endpoint", endpoint);
-    conf.set("fs.s3a.access.key", accessKey);
-    conf.set("fs.s3a.secret.key", secretKey);
-    conf.set("fs.s3a.path.style.access", "true");
-    conf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
+    // Configure S3FileIO with AWS SDK v2 properties
+    Map<String, String> properties = new HashMap<>();
+    properties.put("s3.endpoint", endpoint);
+    properties.put("s3.access-key-id", accessKey);
+    properties.put("s3.secret-access-key", secretKey);
+    properties.put("s3.path-style-access", "true");
 
     // Apply additional storage options
-    for (Map.Entry<String, String> entry : storageOptions.entrySet()) {
-      conf.set(entry.getKey(), entry.getValue());
-    }
+    properties.putAll(storageOptions);
 
-    this.fileSystem = FileSystem.get(new Path(warehousePath).toUri(), conf);
+    // Initialize S3FileIO
+    S3FileIO s3FileIO = new S3FileIO();
+    s3FileIO.initialize(properties);
+    this.fileIO = s3FileIO;
   }
 
   /**
-   * Gets the underlying FileSystem.
+   * Gets the underlying FileIO.
    *
-   * @return the FileSystem instance
+   * @return the FileIO instance
    */
-  public FileSystem getFileSystem() {
+  public FileIO getFileIO() {
     if (closed) {
       throw new IllegalStateException("StorageManager is closed");
     }
-    return fileSystem;
+    return fileIO;
   }
 
   /**
@@ -95,7 +96,9 @@ public class StorageManager {
       return false;
     }
     try {
-      fileSystem.exists(new Path(warehousePath));
+      // Try to create an input file to check connectivity
+      // This is a lightweight check that doesn't require file existence
+      fileIO.newInputFile(warehousePath);
       return true;
     } catch (Exception e) {
       return false;
@@ -111,7 +114,7 @@ public class StorageManager {
     if (!closed) {
       closed = true;
       try {
-        fileSystem.close();
+        fileIO.close();
       } catch (Exception e) {
         // Log but don't throw
       }

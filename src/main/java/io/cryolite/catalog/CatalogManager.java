@@ -34,6 +34,9 @@ public class CatalogManager {
     Map<String, String> properties = new java.util.HashMap<>(catalogOptions);
     properties.put("uri", catalogUri);
 
+    // Use S3FileIO instead of ResolvingFileIO (which requires Hadoop)
+    properties.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+
     // Add OAuth credentials if provided
     if (catalogOptions.containsKey("credential")) {
       properties.put("credential", catalogOptions.get("credential"));

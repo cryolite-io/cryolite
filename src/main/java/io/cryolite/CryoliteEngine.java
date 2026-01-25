@@ -44,7 +44,7 @@ public class CryoliteEngine {
     String accessKey = config.getStorageOptions().getOrDefault("access-key", "minioadmin");
     String secretKey = config.getStorageOptions().getOrDefault("secret-key", "minioadmin");
     String warehousePath =
-        config.getStorageOptions().getOrDefault("warehouse-path", "s3a://cryolite-warehouse");
+        config.getStorageOptions().getOrDefault("warehouse-path", "s3://cryolite-warehouse");
 
     this.storageManager =
         new StorageManager(

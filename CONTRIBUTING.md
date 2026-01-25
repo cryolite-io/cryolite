@@ -268,7 +268,6 @@ By contributing, you agree that your contributions will be licensed under the Ap
 
 - Open a GitHub Discussion
 - Check existing issues/PRs
-- Review the project roadmap in `../prompts/cryolite-java.md`
 
 Thank you for contributing! 🙏
 

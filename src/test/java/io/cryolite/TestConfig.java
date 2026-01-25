@@ -44,7 +44,7 @@ public class TestConfig {
   }
 
   public static String getMinioWarehousePath() {
-    return getEnv("MINIO_WAREHOUSE_PATH", "s3a://cryolite-warehouse");
+    return getEnv("MINIO_WAREHOUSE_PATH", "s3://cryolite-warehouse");
   }
 
   private static String getEnv(String envKey, String defaultValue) {
