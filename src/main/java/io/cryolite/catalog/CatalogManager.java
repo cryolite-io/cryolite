@@ -15,6 +15,10 @@ import org.apache.iceberg.rest.RESTCatalog;
  */
 public class CatalogManager {
 
+  private static final String CREDENTIAL_KEY = "credential";
+  private static final String SCOPE_KEY = "scope";
+  private static final String WAREHOUSE_KEY = "warehouse";
+
   private final Catalog catalog;
   private volatile boolean closed = false;
 
@@ -38,14 +42,14 @@ public class CatalogManager {
     properties.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
 
     // Add OAuth credentials if provided
-    if (catalogOptions.containsKey("credential")) {
-      properties.put("credential", catalogOptions.get("credential"));
+    if (catalogOptions.containsKey(CREDENTIAL_KEY)) {
+      properties.put(CREDENTIAL_KEY, catalogOptions.get(CREDENTIAL_KEY));
     }
-    if (catalogOptions.containsKey("scope")) {
-      properties.put("scope", catalogOptions.get("scope"));
+    if (catalogOptions.containsKey(SCOPE_KEY)) {
+      properties.put(SCOPE_KEY, catalogOptions.get(SCOPE_KEY));
     }
-    if (catalogOptions.containsKey("warehouse")) {
-      properties.put("warehouse", catalogOptions.get("warehouse"));
+    if (catalogOptions.containsKey(WAREHOUSE_KEY)) {
+      properties.put(WAREHOUSE_KEY, catalogOptions.get(WAREHOUSE_KEY));
     }
 
     restCatalog.initialize("cryolite_catalog", properties);
