@@ -16,6 +16,12 @@ fi
 echo "📝 Formatting code with Spotless..."
 mvn spotless:apply -q
 
+# Add any files that were formatted by Spotless to the commit
+if ! git diff --quiet; then
+  echo "📝 Spotless formatted some files, adding them to the commit..."
+  git add -u
+fi
+
 # 2. Run tests with coverage check (minimum 85%)
 echo "🧪 Running tests with coverage check (minimum 85%)..."
 mvn clean test -q
