@@ -1,0 +1,17 @@
+# Test configuration for Polaris and MinIO
+# Copy this file to test.properties and fill in the actual values
+# DO NOT commit test.properties to version control
+
+# Polaris Configuration
+polaris.uri=http://localhost:8181/api/catalog
+polaris.client.id=YOUR_POLARIS_CLIENT_ID
+polaris.client.secret=YOUR_POLARIS_CLIENT_SECRET
+polaris.warehouse=cryolite_catalog
+polaris.scope=PRINCIPAL_ROLE:ALL
+
+# MinIO Configuration
+minio.endpoint=http://localhost:9000
+minio.access.key=minioadmin
+minio.secret.key=minioadmin
+minio.warehouse.path=s3a://cryolite-warehouse
+

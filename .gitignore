@@ -32,6 +32,9 @@ dist/
 .env.local
 .env.*.local
 
+# Test Configuration (contains secrets)
+src/test/resources/test.properties
+
 # SonarQube
 .sonarqube/
 .scannerwork/

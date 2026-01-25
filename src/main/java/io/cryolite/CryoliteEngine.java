@@ -1,5 +1,8 @@
 package io.cryolite;
 
+import io.cryolite.catalog.CatalogManager;
+import io.cryolite.storage.StorageManager;
+
 /**
  * CRYOLITE Runs Your Open Lightweight Iceberg Table Engine.
  *
@@ -14,6 +17,8 @@ package io.cryolite;
 public class CryoliteEngine {
 
   private final CryoliteConfig config;
+  private final CatalogManager catalogManager;
+  private final StorageManager storageManager;
   private volatile boolean closed = false;
 
   /**
@@ -21,12 +26,29 @@ public class CryoliteEngine {
    *
    * @param config the engine configuration
    * @throws IllegalArgumentException if config is null
+   * @throws Exception if catalog or storage initialization fails
    */
-  public CryoliteEngine(CryoliteConfig config) {
+  public CryoliteEngine(CryoliteConfig config) throws Exception {
     if (config == null) {
       throw new IllegalArgumentException("Configuration cannot be null");
     }
     this.config = config;
+
+    // Initialize catalog manager
+    String catalogUri =
+        config.getCatalogOptions().getOrDefault("uri", "http://localhost:8181/api/catalog");
+    this.catalogManager = new CatalogManager(catalogUri, config.getCatalogOptions());
+
+    // Initialize storage manager
+    String endpoint = config.getStorageOptions().getOrDefault("endpoint", "http://localhost:9000");
+    String accessKey = config.getStorageOptions().getOrDefault("access-key", "minioadmin");
+    String secretKey = config.getStorageOptions().getOrDefault("secret-key", "minioadmin");
+    String warehousePath =
+        config.getStorageOptions().getOrDefault("warehouse-path", "s3a://cryolite-warehouse");
+
+    this.storageManager =
+        new StorageManager(
+            endpoint, accessKey, secretKey, warehousePath, config.getStorageOptions());
   }
 
   /**
@@ -36,6 +58,44 @@ public class CryoliteEngine {
    */
   public CryoliteConfig getConfig() {
     return config;
+  }
+
+  /**
+   * Returns the catalog manager.
+   *
+   * @return the catalog manager
+   * @throws IllegalStateException if engine is closed
+   */
+  public CatalogManager getCatalogManager() {
+    if (closed) {
+      throw new IllegalStateException("Engine is closed");
+    }
+    return catalogManager;
+  }
+
+  /**
+   * Returns the storage manager.
+   *
+   * @return the storage manager
+   * @throws IllegalStateException if engine is closed
+   */
+  public StorageManager getStorageManager() {
+    if (closed) {
+      throw new IllegalStateException("Engine is closed");
+    }
+    return storageManager;
+  }
+
+  /**
+   * Checks if the engine is healthy (catalog and storage are accessible).
+   *
+   * @return true if both catalog and storage are healthy, false otherwise
+   */
+  public boolean isHealthy() {
+    if (closed) {
+      return false;
+    }
+    return catalogManager.isHealthy() && storageManager.isHealthy();
   }
 
   /**
@@ -50,12 +110,19 @@ public class CryoliteEngine {
   /**
    * Closes the engine and releases all resources.
    *
-   * <p>After calling this method, the engine cannot be used anymore.
+   * <p>After calling this method, the engine cannot be used anymore. This method is idempotent -
+   * calling it multiple times is safe.
    */
   public void close() {
     if (!closed) {
       closed = true;
-      // Release resources (catalog, storage, etc.) - to be implemented in future milestones
+      // Release resources in reverse order
+      if (storageManager != null) {
+        storageManager.close();
+      }
+      if (catalogManager != null) {
+        catalogManager.close();
+      }
     }
   }
 
