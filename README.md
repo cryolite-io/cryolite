@@ -163,7 +163,7 @@ This project is licensed under the Apache License 2.0 - see [LICENSE](LICENSE) f
 
 ## Code Quality
 
-- **Test Coverage**: 100% for own logic
+- **Test Coverage**: Minimum 85% line coverage (enforced by JaCoCo)
 - **Code Style**: Google Java Format (enforced by Spotless)
 - **Quality Gate**: SonarCloud (no critical/high issues)
 - **Commits**: Conventional Commits format

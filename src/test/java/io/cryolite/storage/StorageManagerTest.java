@@ -5,10 +5,25 @@ import static org.junit.jupiter.api.Assertions.*;
 import io.cryolite.TestConfig;
 import java.util.HashMap;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /** Tests for StorageManager. */
 class StorageManagerTest {
+
+  @BeforeAll
+  static void ensureDockerComposeRunning() throws Exception {
+    // Ensure Docker Compose services are running before tests
+    ProcessBuilder pb = new ProcessBuilder("docker-compose", "up", "-d");
+    pb.redirectErrorStream(true);
+    Process process = pb.start();
+    int exitCode = process.waitFor();
+    if (exitCode != 0) {
+      throw new RuntimeException("Failed to start Docker Compose services");
+    }
+    // Give services time to become healthy
+    Thread.sleep(5000);
+  }
 
   @Test
   void testStorageManagerCreation() throws Exception {
@@ -161,5 +176,22 @@ class StorageManagerTest {
     manager.close();
 
     assertFalse(manager.isHealthy());
+  }
+
+  @Test
+  void testStorageManagerIsHealthy() throws Exception {
+    Map<String, String> options = new HashMap<>();
+    StorageManager manager =
+        new StorageManager(
+            TestConfig.getMinioEndpoint(),
+            TestConfig.getMinioAccessKey(),
+            TestConfig.getMinioSecretKey(),
+            TestConfig.getMinioWarehousePath(),
+            options);
+
+    // With Docker Compose running, test the actual health check against MinIO
+    // This executes fileIO.newInputFile() to verify connectivity
+    assertTrue(manager.isHealthy(), "Storage should be healthy when MinIO is running");
+    manager.close();
   }
 }

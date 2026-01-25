@@ -2,10 +2,25 @@ package io.cryolite;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /** Tests for CryoliteEngine. */
 class CryoliteEngineTest {
+
+  @BeforeAll
+  static void ensureDockerComposeRunning() throws Exception {
+    // Ensure Docker Compose services are running before tests
+    ProcessBuilder pb = new ProcessBuilder("docker-compose", "up", "-d");
+    pb.redirectErrorStream(true);
+    Process process = pb.start();
+    int exitCode = process.waitFor();
+    if (exitCode != 0) {
+      throw new RuntimeException("Failed to start Docker Compose services");
+    }
+    // Give services time to become healthy
+    Thread.sleep(5000);
+  }
 
   private CryoliteConfig createTestConfig() {
     return new CryoliteConfig.Builder()
@@ -69,5 +84,61 @@ class CryoliteEngineTest {
     assertNotNull(str);
     assertTrue(str.contains("CryoliteEngine"));
     engine.close();
+  }
+
+  @Test
+  void testGetCatalogManager() throws Exception {
+    CryoliteConfig config = createTestConfig();
+    CryoliteEngine engine = new CryoliteEngine(config);
+
+    assertNotNull(engine.getCatalogManager());
+    engine.close();
+  }
+
+  @Test
+  void testGetCatalogManagerWhenClosed() throws Exception {
+    CryoliteConfig config = createTestConfig();
+    CryoliteEngine engine = new CryoliteEngine(config);
+    engine.close();
+
+    assertThrows(IllegalStateException.class, engine::getCatalogManager);
+  }
+
+  @Test
+  void testGetStorageManager() throws Exception {
+    CryoliteConfig config = createTestConfig();
+    CryoliteEngine engine = new CryoliteEngine(config);
+
+    assertNotNull(engine.getStorageManager());
+    engine.close();
+  }
+
+  @Test
+  void testGetStorageManagerWhenClosed() throws Exception {
+    CryoliteConfig config = createTestConfig();
+    CryoliteEngine engine = new CryoliteEngine(config);
+    engine.close();
+
+    assertThrows(IllegalStateException.class, engine::getStorageManager);
+  }
+
+  @Test
+  void testIsHealthy() throws Exception {
+    CryoliteConfig config = createTestConfig();
+    CryoliteEngine engine = new CryoliteEngine(config);
+
+    // With Docker Compose running, the engine should be healthy
+    // This tests the actual health check logic against real services
+    assertTrue(engine.isHealthy(), "Engine should be healthy when services are running");
+    engine.close();
+  }
+
+  @Test
+  void testIsHealthyWhenClosed() throws Exception {
+    CryoliteConfig config = createTestConfig();
+    CryoliteEngine engine = new CryoliteEngine(config);
+    engine.close();
+
+    assertFalse(engine.isHealthy());
   }
 }

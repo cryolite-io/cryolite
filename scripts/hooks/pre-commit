@@ -1,6 +1,6 @@
 #!/bin/bash
 # Pre-commit hook for CRYOLITE
-# Runs: code formatting, tests, and SonarCloud analysis
+# Runs: code formatting, tests with coverage check, and SonarCloud analysis
 # This hook ensures code quality before every commit
 
 set -e
@@ -16,9 +16,13 @@ fi
 echo "📝 Formatting code with Spotless..."
 mvn spotless:apply -q
 
-# 2. Run tests with coverage
-echo "🧪 Running tests with coverage..."
+# 2. Run tests with coverage check (minimum 85%)
+echo "🧪 Running tests with coverage check (minimum 85%)..."
 mvn clean test -q
+if [ $? -ne 0 ]; then
+  echo "❌ Tests failed or coverage below 85%"
+  exit 1
+fi
 
 # 3. SonarCloud analysis (REQUIRED - no skipping)
 echo "📊 Running SonarCloud analysis..."
@@ -32,6 +36,7 @@ if [ -z "$SONAR_TOKEN" ]; then
   exit 1
 fi
 
+# Run SonarCloud analysis and wait for quality gate
 sonar-scanner \
   -Dsonar.projectKey="${SONAR_PROJECT_KEY}" \
   -Dsonar.organization="${SONAR_ORGANIZATION}" \
@@ -39,7 +44,13 @@ sonar-scanner \
   -Dsonar.tests=src/test \
   -Dsonar.java.binaries=target/classes \
   -Dsonar.java.test.binaries=target/test-classes \
-  -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+  -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+  -Dsonar.qualitygate.wait=true
+
+if [ $? -ne 0 ]; then
+  echo "❌ SonarCloud analysis failed or quality gate not passed"
+  exit 1
+fi
 
 echo "✅ All pre-commit checks passed!"
 echo "📌 Review SonarCloud results at: https://sonarcloud.io/organizations/cryolite-io/projects"

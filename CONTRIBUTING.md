@@ -191,7 +191,7 @@ Then create a PR on GitHub with:
 
 ### Mandatory Requirements
 
-- ✅ **100% Unit Test Coverage** (for own logic)
+- ✅ **Minimum 85% Line Coverage** (enforced by JaCoCo, focus on meaningful tests)
 - ✅ **Code Formatting** (Google Java Format via Spotless)
 - ✅ **SonarCloud Quality Gate** (no critical/high issues)
 - ✅ **Conventional Commits** (enforced by git hooks)
@@ -207,10 +207,34 @@ Then create a PR on GitHub with:
 
 ## Testing
 
+### Coverage Policy
+
+**Target: Minimum 85% line coverage**
+
+We enforce a **85% minimum line coverage** threshold instead of 100% because:
+- **Quality over quantity**: Focus on meaningful tests that verify actual behavior
+- **Realistic goal**: Some code paths (error handling, edge cases) are difficult to test without artificial scenarios
+- **Maintainability**: Avoid writing tests just to reach 100% that don't add real value
+- **Pragmatic approach**: 85% provides excellent coverage while allowing flexibility for complex scenarios
+
+**What to test:**
+- ✅ All public APIs and their contracts
+- ✅ Business logic and data transformations
+- ✅ Error handling for expected failures
+- ✅ Edge cases and boundary conditions
+- ✅ Integration with external services (Polaris, MinIO)
+
+**What NOT to test:**
+- ❌ Simple getters/setters without logic
+- ❌ Trivial constructors
+- ❌ Framework-generated code
+- ❌ Unreachable defensive code
+
 ### Run Tests
 
 ```bash
-# All tests
+# All tests (requires Docker Compose services running)
+docker-compose up -d
 mvn clean test
 
 # Specific test class

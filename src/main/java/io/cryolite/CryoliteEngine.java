@@ -117,12 +117,8 @@ public class CryoliteEngine {
     if (!closed) {
       closed = true;
       // Release resources in reverse order
-      if (storageManager != null) {
-        storageManager.close();
-      }
-      if (catalogManager != null) {
-        catalogManager.close();
-      }
+      storageManager.close();
+      catalogManager.close();
     }
   }
 

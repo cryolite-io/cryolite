@@ -3,6 +3,7 @@ package io.cryolite.catalog;
 import java.util.Map;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.rest.RESTCatalog;
 
 /**
@@ -78,10 +79,13 @@ public class CatalogManager {
       return false;
     }
     try {
-      // Try to list tables in the root namespace as a health check
-      catalog.listTables(Namespace.empty());
+      // Try to check if a table exists as a health check
+      // This is a lightweight operation that verifies catalog connectivity
+      catalog.tableExists(TableIdentifier.of("_health_check", "_health_check"));
       return true;
     } catch (Exception e) {
+      // TODO: Replace with proper logging framework later
+      System.err.println("CatalogManager health check failed: " + e.getMessage());
       return false;
     }
   }

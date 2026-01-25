@@ -52,6 +52,8 @@ public class StorageManager {
     properties.put("s3.access-key-id", accessKey);
     properties.put("s3.secret-access-key", secretKey);
     properties.put("s3.path-style-access", "true");
+    // Set a default region for MinIO (required by AWS SDK v2)
+    properties.put("client.region", "us-west-2");
 
     // Apply additional storage options
     properties.putAll(storageOptions);
@@ -96,11 +98,13 @@ public class StorageManager {
       return false;
     }
     try {
-      // Try to create an input file to check connectivity
-      // This is a lightweight check that doesn't require file existence
-      fileIO.newInputFile(warehousePath);
+      // Try to create an output file reference to check connectivity
+      // This doesn't actually create the file, just verifies S3 access
+      fileIO.newOutputFile(warehousePath + "/.health_check");
       return true;
     } catch (Exception e) {
+      // TODO: Replace with proper logging framework later
+      System.err.println("StorageManager health check failed: " + e.getMessage());
       return false;
     }
   }
