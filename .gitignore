@@ -1,0 +1,55 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+.flattened-pom.xml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+*.iws
+*.ipr
+
+# Build
+build/
+dist/
+*.class
+*.jar
+*.war
+*.ear
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# SonarQube
+.sonarqube/
+.scannerwork/
+
+# Coverage
+coverage/
+*.lcov
+
+# Node (for pre-commit hooks)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
