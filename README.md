@@ -138,7 +138,7 @@ cryolite/
 
 ## Milestones
 
-### Current: M0 – Project Foundation
+### ✅ M0 – Project Foundation (Completed)
 
 - ✅ Maven build with dependencies
 - ✅ Docker Compose (Polaris + MinIO)
@@ -147,6 +147,20 @@ cryolite/
 - ✅ Conventional Commits validation
 - ✅ Apache License 2.0
 - ✅ Contributing guidelines
+
+### ✅ M1 – Embedded Skeleton + Configuration (Completed)
+
+- ✅ `CryoliteEngine` - Main entry point with lifecycle (create/close)
+- ✅ `CryoliteConfig` - Immutable configuration with Builder pattern
+- ✅ `CatalogManager` - Polaris REST Catalog connection
+- ✅ `StorageManager` - MinIO S3 storage connection
+- ✅ Health checks for Polaris & MinIO connectivity
+- ✅ 39 unit tests with 85%+ coverage
+- ✅ Full integration with Docker Compose services
+
+### Current: M2 – Next Milestone
+
+Coming soon...
 
 ## Contributing
 
