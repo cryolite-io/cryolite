@@ -1,40 +1,235 @@
 services:
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: cryolite-minio
     ports:
-      - "${MINIO_PORT}:9000"
-      - "${MINIO_CONSOLE_PORT}:9001"
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    command: server /data --console-address ":9001"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command:
+      - "server"
+      - "/data"
+      - "--console-address"
+      - ":9001"
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      test: ["CMD", "curl", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 1s
+      timeout: 10s
 
   polaris:
     image: apache/polaris:1.3.0-incubating
     container_name: cryolite-polaris
     ports:
-      - "${POLARIS_PORT}:8181"
-    environment:
-      POLARIS_CATALOG_WAREHOUSE_DIRECTORY: s3://cryolite-warehouse
-      POLARIS_CATALOG_S3_ENDPOINT: http://minio:9000
-      POLARIS_CATALOG_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      POLARIS_CATALOG_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      - "${POLARIS_PORT:-8181}:8181"
+      - "8182:8182"  # Management port (metrics and health checks)
     depends_on:
       minio:
         condition: service_healthy
+    environment:
+      AWS_REGION: us-west-2
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      POLARIS_BOOTSTRAP_CREDENTIALS: ${POLARIS_REALM:-POLARIS},${POLARIS_ROOT_CLIENT_ID:-polarisadmin},${POLARIS_ROOT_CLIENT_SECRET:-polarisadmin}
+      polaris.realm-context.realms: ${POLARIS_REALM:-POLARIS}
+      quarkus.otel.sdk.disabled: "true"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8181/api/v1/catalogs"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      test: ["CMD", "curl", "http://localhost:8182/q/health"]
+      interval: 2s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+
+  setup_bucket:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    container_name: cryolite-setup-bucket
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: "/bin/sh"
+    command:
+      - "-c"
+      - >-
+        echo Creating MinIO bucket...;
+        mc alias set pol http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+        mc mb pol/${POLARIS_BUCKET:-cryolite-warehouse} || echo "Bucket already exists";
+        mc ls pol;
+        echo Bucket setup complete.;
+
+  polaris-setup:
+    image: alpine/curl:8.17.0
+    container_name: cryolite-polaris-setup
+    depends_on:
+      polaris:
+        condition: service_healthy
+    environment:
+      - CLIENT_ID=${POLARIS_ROOT_CLIENT_ID:-polarisadmin}
+      - CLIENT_SECRET=${POLARIS_ROOT_CLIENT_SECRET:-polarisadmin}
+      - CATALOG_NAME=${POLARIS_CATALOG:-cryolite_catalog}
+      - REALM=${POLARIS_REALM:-POLARIS}
+      - BUCKET=${POLARIS_BUCKET:-cryolite-warehouse}
+      - USER_NAME=${POLARIS_USER:-cryolite_user}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+        apk add --no-cache jq
+
+        echo "Obtaining root access token..."
+        TOKEN_RESPONSE=$$(curl --fail-with-body -s -S -X POST http://polaris:8181/api/catalog/v1/oauth/tokens \
+          -H 'Content-Type: application/x-www-form-urlencoded' \
+          -d "grant_type=client_credentials&client_id=$${CLIENT_ID}&client_secret=$${CLIENT_SECRET}&scope=PRINCIPAL_ROLE:ALL" 2>&1) || {
+          echo "❌ Failed to obtain access token"
+          echo "$$TOKEN_RESPONSE" >&2
+          exit 1
+        }
+
+        TOKEN=$$(echo $$TOKEN_RESPONSE | jq -r '.access_token')
+        if [ -z "$$TOKEN" ] || [ "$$TOKEN" = "null" ]; then
+          echo "❌ Failed to parse access token from response"
+          echo "$$TOKEN_RESPONSE"
+          exit 1
+        fi
+        echo "✅ Obtained access token"
+
+        echo "Creating catalog '$$CATALOG_NAME' in realm $$REALM..."
+        PAYLOAD='{
+          "catalog": {
+            "name": "'$$CATALOG_NAME'",
+            "type": "INTERNAL",
+            "readOnly": false,
+            "properties": {
+              "default-base-location": "s3://'$$BUCKET'"
+            },
+            "storageConfigInfo": {
+              "storageType": "S3",
+              "allowedLocations": ["s3://'$$BUCKET'"],
+              "endpoint": "http://localhost:9000",
+              "endpointInternal": "http://minio:9000",
+              "pathStyleAccess": true
+            }
+          }
+        }'
+
+        RESPONSE=$$(curl --fail-with-body -s -S -X POST http://polaris:8181/api/management/v1/catalogs \
+          -H "Authorization: Bearer $$TOKEN" \
+          -H "Accept: application/json" \
+          -H "Content-Type: application/json" \
+          -H "Polaris-Realm: $$REALM" \
+          -d "$$PAYLOAD" 2>&1) && echo -n "" || {
+          echo "❌ Failed to create catalog"
+          echo "$$RESPONSE" >&2
+          exit 1
+        }
+        echo "✅ Catalog created"
+
+        echo "Creating principal '$$USER_NAME'..."
+        PRINCIPAL_RESPONSE=$$(curl --fail-with-body -s -X POST http://polaris:8181/api/management/v1/principals \
+          -H "Authorization: Bearer $$TOKEN" \
+          -H "Polaris-Realm: $$REALM" \
+          -H "Content-Type: application/json" \
+          -d '{"principal": {"name": "'$$USER_NAME'", "properties": {}}}' 2>&1) || {
+          echo "❌ Failed to create principal"
+          echo "$$PRINCIPAL_RESPONSE" >&2
+          exit 1
+        }
+
+        USER_CLIENT_ID=$$(echo $$PRINCIPAL_RESPONSE | jq -r '.credentials.clientId')
+        USER_CLIENT_SECRET=$$(echo $$PRINCIPAL_RESPONSE | jq -r '.credentials.clientSecret')
+        if [ -z "$$USER_CLIENT_ID" ] || [ "$$USER_CLIENT_ID" = "null" ] || [ -z "$$USER_CLIENT_SECRET" ] || [ "$$USER_CLIENT_SECRET" = "null" ]; then
+          echo "❌ Failed to parse user credentials from response"
+          echo "$$PRINCIPAL_RESPONSE"
+          exit 1
+        fi
+        echo "✅ Principal created with clientId: $$USER_CLIENT_ID"
+
+        echo "Creating principal role '$${USER_NAME}_role'..."
+        RESPONSE=$$(curl --fail-with-body -s -S -X POST http://polaris:8181/api/management/v1/principal-roles \
+          -H "Authorization: Bearer $$TOKEN" \
+          -H "Polaris-Realm: $$REALM" \
+          -H "Content-Type: application/json" \
+          -d '{"principalRole": {"name": "'$$USER_NAME'_role", "properties": {}}}' 2>&1) && echo -n "" || {
+          echo "❌ Failed to create principal role"
+          echo "$$RESPONSE" >&2
+          exit 1
+        }
+        echo "✅ Principal role created"
+
+        echo "Creating catalog role '$${CATALOG_NAME}_role'..."
+        RESPONSE=$$(curl --fail-with-body -s -S -X POST http://polaris:8181/api/management/v1/catalogs/$$CATALOG_NAME/catalog-roles \
+          -H "Authorization: Bearer $$TOKEN" \
+          -H "Polaris-Realm: $$REALM" \
+          -H "Content-Type: application/json" \
+          -d '{"catalogRole": {"name": "'$$CATALOG_NAME'_role", "properties": {}}}' 2>&1) && echo -n "" || {
+          echo "❌ Failed to create catalog role"
+          echo "$$RESPONSE" >&2
+          exit 1
+        }
+        echo "✅ Catalog role created"
+
+        echo "Assigning principal role to principal..."
+        RESPONSE=$$(curl --fail-with-body -s -S -X PUT http://polaris:8181/api/management/v1/principals/$$USER_NAME/principal-roles \
+          -H "Authorization: Bearer $$TOKEN" \
+          -H "Polaris-Realm: $$REALM" \
+          -H "Content-Type: application/json" \
+          -d '{"principalRole": {"name": "'$$USER_NAME'_role"}}' 2>&1) && echo -n "" || {
+          echo "❌ Failed to assign principal role"
+          echo "$$RESPONSE" >&2
+          exit 1
+        }
+        echo "✅ Principal role assigned"
+
+        echo "Assigning catalog role to principal role..."
+        RESPONSE=$$(curl --fail-with-body -s -S -X PUT http://polaris:8181/api/management/v1/principal-roles/$${USER_NAME}_role/catalog-roles/$$CATALOG_NAME \
+          -H "Authorization: Bearer $$TOKEN" \
+          -H "Polaris-Realm: $$REALM" \
+          -H "Content-Type: application/json" \
+          -d '{"catalogRole": {"name": "'$$CATALOG_NAME'_role"}}' 2>&1) && echo -n "" || {
+          echo "❌ Failed to assign catalog role"
+          echo "$$RESPONSE" >&2
+          exit 1
+        }
+        echo "✅ Catalog role assigned"
+
+        echo "Granting CATALOG_MANAGE_CONTENT privilege..."
+        RESPONSE=$$(curl --fail-with-body -s -S -X PUT http://polaris:8181/api/management/v1/catalogs/$$CATALOG_NAME/catalog-roles/$${CATALOG_NAME}_role/grants \
+          -H "Authorization: Bearer $$TOKEN" \
+          -H "Polaris-Realm: $$REALM" \
+          -H "Content-Type: application/json" \
+          -d '{"type": "catalog", "privilege": "CATALOG_MANAGE_CONTENT"}' 2>&1) || {
+          echo "❌ Failed to grant privileges"
+          echo "$$RESPONSE" >&2
+          exit 1
+        }
+        echo "✅ Privileges granted"
+
+        echo ""
+        echo "=========================================="
+        echo "🎉 CRYOLITE Polaris Setup Complete!"
+        echo "=========================================="
+        echo ""
+        echo "Catalog: $$CATALOG_NAME"
+        echo "  Storage: S3 (MinIO)"
+        echo "  Location: s3://$$BUCKET"
+        echo "  MinIO UI: http://localhost:9001"
+        echo ""
+        echo "Root credentials:"
+        echo "  Client ID:     $$CLIENT_ID"
+        echo "  Client Secret: $$CLIENT_SECRET"
+        echo ""
+        echo "User credentials (use these in your application):"
+        echo "  Client ID:     $$USER_CLIENT_ID"
+        echo "  Client Secret: $$USER_CLIENT_SECRET"
+        echo ""
+        echo "Add these to your .env file:"
+        echo "POLARIS_CLIENT_ID=$$USER_CLIENT_ID"
+        echo "POLARIS_CLIENT_SECRET=$$USER_CLIENT_SECRET"
+        echo ""
+        echo "=========================================="
 
 volumes:
   minio_data:

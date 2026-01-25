@@ -1,15 +1,25 @@
 # Test configuration for Polaris and MinIO
-# Copy this file to test.properties and fill in the actual values
-# DO NOT commit test.properties to version control
+#
+# RECOMMENDED: Use environment variables from .env file instead of this file
+# The .env file is the central place for all configuration
+#
+# If you prefer to use this file:
+# 1. Copy this file to test.properties
+# 2. Fill in the actual values
+# 3. DO NOT commit test.properties to version control
+#
+# Priority: Environment variables (.env) > test.properties > defaults
 
 # Polaris Configuration
+# These values are read from .env by default (POLARIS_CLIENT_ID, POLARIS_CLIENT_SECRET, etc.)
 polaris.uri=http://localhost:8181/api/catalog
-polaris.client.id=YOUR_POLARIS_CLIENT_ID
-polaris.client.secret=YOUR_POLARIS_CLIENT_SECRET
+polaris.client.id=polarisadmin
+polaris.client.secret=polarisadmin
 polaris.warehouse=cryolite_catalog
 polaris.scope=PRINCIPAL_ROLE:ALL
 
 # MinIO Configuration
+# These values are read from .env by default (MINIO_ROOT_USER, MINIO_ROOT_PASSWORD, etc.)
 minio.endpoint=http://localhost:9000
 minio.access.key=minioadmin
 minio.secret.key=minioadmin

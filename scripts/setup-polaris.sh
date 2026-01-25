@@ -4,12 +4,19 @@ set -e
 # Setup Polaris catalog for integration tests
 # This script creates a catalog, principal, and grants necessary privileges
 
-POLARIS_URL="${POLARIS_URL:-http://localhost:8181}"
-ROOT_CLIENT_ID="${ROOT_CLIENT_ID}"
-ROOT_CLIENT_SECRET="${ROOT_CLIENT_SECRET}"
+# Load .env file if it exists
+if [ -f "$(dirname "$0")/../.env" ]; then
+  echo "Loading configuration from .env..."
+  export $(grep -v '^#' "$(dirname "$0")/../.env" | xargs)
+fi
+
+POLARIS_URL="${POLARIS_URL:-http://localhost:${POLARIS_PORT:-8181}}"
+ROOT_CLIENT_ID="${POLARIS_ROOT_CLIENT_ID}"
+ROOT_CLIENT_SECRET="${POLARIS_ROOT_CLIENT_SECRET}"
 
 if [ -z "$ROOT_CLIENT_ID" ] || [ -z "$ROOT_CLIENT_SECRET" ]; then
-  echo "Error: ROOT_CLIENT_ID and ROOT_CLIENT_SECRET must be set"
+  echo "Error: POLARIS_ROOT_CLIENT_ID and POLARIS_ROOT_CLIENT_SECRET must be set in .env"
+  echo "Get them with: docker logs cryolite-polaris 2>&1 | grep 'root principal credentials:'"
   exit 1
 fi
 

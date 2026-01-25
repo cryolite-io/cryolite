@@ -27,18 +27,36 @@ public class TestConfig {
   }
 
   public static String getPolarisClientId() {
-    return getProperty("polaris.client.id", "POLARIS_CLIENT_ID", "");
+    // First try environment variable from .env, then test.properties, then default
+    String envValue = System.getenv("POLARIS_CLIENT_ID");
+    if (envValue != null && !envValue.isEmpty()) {
+      return envValue;
+    }
+    return getProperty("polaris.client.id", "POLARIS_CLIENT_ID", "polarisadmin");
   }
 
   public static String getPolarisClientSecret() {
-    return getProperty("polaris.client.secret", "POLARIS_CLIENT_SECRET", "");
+    // First try environment variable from .env, then test.properties, then default
+    String envValue = System.getenv("POLARIS_CLIENT_SECRET");
+    if (envValue != null && !envValue.isEmpty()) {
+      return envValue;
+    }
+    return getProperty("polaris.client.secret", "POLARIS_CLIENT_SECRET", "polarisadmin");
   }
 
   public static String getPolarisWarehouse() {
+    String envValue = System.getenv("POLARIS_WAREHOUSE");
+    if (envValue != null && !envValue.isEmpty()) {
+      return envValue;
+    }
     return getProperty("polaris.warehouse", "POLARIS_WAREHOUSE", "cryolite_catalog");
   }
 
   public static String getPolarisScope() {
+    String envValue = System.getenv("POLARIS_SCOPE");
+    if (envValue != null && !envValue.isEmpty()) {
+      return envValue;
+    }
     return getProperty("polaris.scope", "POLARIS_SCOPE", "PRINCIPAL_ROLE:ALL");
   }
 
