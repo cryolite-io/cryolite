@@ -38,33 +38,33 @@ An embedded, lightweight Apache Iceberg table and query engine for Java applicat
    mvn clean test
    ```
 
-### Development
+## Development
 
-#### Pre-Commit Hooks
+### Pre-Commit Hooks
 
-The project uses Git hooks for quality assurance:
+The project uses Git hooks for quality assurance. All checks run automatically before each commit:
 
 - **Code Formatting**: Spotless (Google Java Format)
-- **Unit Tests**: JUnit 5
-- **SonarCloud Analysis**: Optional (set `SKIP_SONAR=1` to skip)
+- **Unit Tests**: JUnit 5 with 100% coverage requirement
+- **Code Quality**: SonarCloud analysis (required)
 
-To run pre-commit checks manually:
+The pre-commit hook will:
+1. Format code with Spotless
+2. Run all tests with coverage
+3. Analyze code with SonarCloud
+4. Block commit if any check fails
+
+### Manual Quality Checks
+
 ```bash
-SKIP_SONAR=1 mvn clean test spotless:check
-```
+# Format code
+mvn spotless:apply
 
-#### SonarCloud Integration
+# Run tests with coverage
+mvn clean test
 
-SonarCloud analysis is configured but optional in pre-commit hooks:
-
-```bash
-# Run SonarCloud analysis
-export SONAR_HOST_URL=https://sonarcloud.io
-export SONAR_LOGIN=<your-token>
-export SONAR_PROJECT_KEY=cryolite
-export SONAR_ORGANIZATION=cryolite-io
-
-sonar-scanner
+# Check code quality
+mvn spotless:check
 ```
 
 ## Project Structure
@@ -72,11 +72,15 @@ sonar-scanner
 ```
 cryolite/
 ├── src/main/java/io/cryolite/     # Main source code
-├── src/test/java/io/cryolite/     # Unit tests
+├── src/test/java/io/cryolite/     # Unit tests (100% coverage)
 ├── pom.xml                         # Maven configuration
-├── docker-compose.yml              # Docker services
-├── .env                            # Environment variables
-└── .git/hooks/                     # Git hooks
+├── docker-compose.yml              # Docker services (Polaris + MinIO)
+├── .env                            # Environment variables (secrets)
+├── .git/hooks/                     # Git hooks (pre-commit, commit-msg)
+├── LICENSE                         # Apache License 2.0
+├── README.md                       # This file
+├── CONTRIBUTING.md                 # Contribution guidelines
+└── .gitignore                      # Git ignore rules
 ```
 
 ## Milestones
@@ -90,12 +94,26 @@ See `../prompts/cryolite-java.md` for the complete roadmap (M0–M31).
 - ✅ Quality gates (Spotless, JUnit, SonarCloud)
 - ✅ Git hooks (pre-commit, commit-msg)
 - ✅ Conventional Commits validation
-
-## License
-
-TBD
+- ✅ Apache License 2.0
+- ✅ Contributing guidelines
 
 ## Contributing
 
-See CONTRIBUTING.md (TBD)
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Development setup
+- Commit message guidelines
+- Code quality standards
+- Testing requirements
+- Pull request process
+
+## License
+
+This project is licensed under the Apache License 2.0 - see [LICENSE](LICENSE) file for details.
+
+## Code Quality
+
+- **Test Coverage**: 100% for own logic
+- **Code Style**: Google Java Format (enforced by Spotless)
+- **Quality Gate**: SonarCloud (no critical/high issues)
+- **Commits**: Conventional Commits format
 
