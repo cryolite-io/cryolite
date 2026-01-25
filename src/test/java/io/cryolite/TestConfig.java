@@ -1,8 +1,8 @@
 package io.cryolite;
 
 /**
- * Loads test configuration from environment variables (typically from .env file). Secrets are
- * never hardcoded in test files.
+ * Loads test configuration from environment variables (typically from .env file). Secrets are never
+ * hardcoded in test files.
  *
  * <p>Configuration priority: 1. Environment variables (from .env) 2. Hardcoded defaults
  *

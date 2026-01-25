@@ -1,0 +1,36 @@
+#!/bin/bash
+# Commit-msg hook for CRYOLITE
+# Validates Conventional Commits format
+
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Skip validation for merge commits
+if [[ $COMMIT_MSG == Merge* ]]; then
+  exit 0
+fi
+
+# Conventional Commits pattern:
+# feat:, fix:, refactor:, test:, docs:, build:, chore:
+# Optional scope: feat(scope):
+# Optional breaking change: feat!:
+if ! echo "$COMMIT_MSG" | grep -qE "^(feat|fix|refactor|test|docs|build|chore)(\(.+\))?!?: "; then
+  echo "❌ Commit message does not follow Conventional Commits format!"
+  echo ""
+  echo "Valid formats:"
+  echo "  feat: add new feature"
+  echo "  feat(scope): add new feature"
+  echo "  fix: fix a bug"
+  echo "  refactor: refactor code"
+  echo "  test: add tests"
+  echo "  docs: update documentation"
+  echo "  build: update build configuration"
+  echo "  chore: maintenance tasks"
+  echo ""
+  echo "Your message:"
+  echo "  $COMMIT_MSG"
+  exit 1
+fi
+
+exit 0
+

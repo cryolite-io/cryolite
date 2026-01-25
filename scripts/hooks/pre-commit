@@ -1,0 +1,46 @@
+#!/bin/bash
+# Pre-commit hook for CRYOLITE
+# Runs: code formatting, tests, and SonarCloud analysis
+# This hook ensures code quality before every commit
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Load environment variables
+if [ -f .env ]; then
+  export $(cat .env | grep -v '^#' | xargs)
+fi
+
+# 1. Code formatting with Spotless
+echo "📝 Formatting code with Spotless..."
+mvn spotless:apply -q
+
+# 2. Run tests with coverage
+echo "🧪 Running tests with coverage..."
+mvn clean test -q
+
+# 3. SonarCloud analysis (REQUIRED - no skipping)
+echo "📊 Running SonarCloud analysis..."
+export SONAR_HOST_URL="${SONAR_HOST_URL:-https://sonarcloud.io}"
+export SONAR_TOKEN="${SONAR_TOKEN}"
+export SONAR_PROJECT_KEY="${SONAR_PROJECT_KEY:-cryolite-io_cryolite}"
+export SONAR_ORGANIZATION="${SONAR_ORGANIZATION:-cryolite-io}"
+
+if [ -z "$SONAR_TOKEN" ]; then
+  echo "❌ Error: SONAR_TOKEN not set in .env"
+  exit 1
+fi
+
+sonar-scanner \
+  -Dsonar.projectKey="${SONAR_PROJECT_KEY}" \
+  -Dsonar.organization="${SONAR_ORGANIZATION}" \
+  -Dsonar.sources=src/main \
+  -Dsonar.tests=src/test \
+  -Dsonar.java.binaries=target/classes \
+  -Dsonar.java.test.binaries=target/test-classes \
+  -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+
+echo "✅ All pre-commit checks passed!"
+echo "📌 Review SonarCloud results at: https://sonarcloud.io/organizations/cryolite-io/projects"
+

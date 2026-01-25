@@ -14,15 +14,76 @@ Thank you for your interest in contributing to CRYOLITE! We welcome contribution
 ### Setup Development Environment
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/cryolite-io/cryolite.git
 cd cryolite
 
-# Start Docker services
+# 2. Configure environment variables
+cp .env.example .env
+
+# 3. Edit .env and set your SonarCloud token
+# Get your token from: https://sonarcloud.io/account/security
+nano .env  # Set SONAR_TOKEN=your_token_here
+
+# 4. Install Git hooks (REQUIRED for all contributors)
+# The hooks are in .git/hooks/ and need to be created
+# See "Git Hooks Setup" section below
+
+# 5. Start Docker services
 docker-compose up -d
 
-# Build and test
+# 6. Get auto-generated Polaris credentials
+docker logs cryolite-polaris-setup | grep "POLARIS_CLIENT_ID"
+# Copy the output to your .env file
+
+# 7. Load environment and test
+export $(grep -v '^#' .env | xargs)
 mvn clean test
+```
+
+### Git Hooks Setup
+
+**IMPORTANT**: Git hooks are stored in `.git/hooks/` which is **NOT tracked by Git**. Each contributor must install them manually.
+
+#### Why Git Hooks Can't Be Pushed
+
+Git does not track the `.git/hooks/` directory for security reasons. If hooks could be pushed, malicious code could be executed on every developer's machine. Therefore, each contributor must install hooks manually.
+
+#### Installing Git Hooks
+
+The project requires two hooks:
+
+1. **pre-commit**: Runs code formatting, tests, and SonarCloud analysis
+2. **commit-msg**: Validates commit message format (Conventional Commits)
+
+**Recommended: Use the install script**
+```bash
+# Run the installation script
+./scripts/hooks/install-hooks.sh
+
+# Verify installation
+ls -la .git/hooks/pre-commit .git/hooks/commit-msg
+```
+
+**Alternative: Manual installation**
+```bash
+# Copy hooks from scripts/hooks/ to .git/hooks/
+cp scripts/hooks/pre-commit .git/hooks/
+cp scripts/hooks/commit-msg .git/hooks/
+chmod +x .git/hooks/pre-commit .git/hooks/commit-msg
+```
+
+#### Verifying Hook Installation
+
+```bash
+# Test pre-commit hook manually
+.git/hooks/pre-commit
+
+# Test commit-msg hook manually
+echo "feat: test commit" | .git/hooks/commit-msg
+
+# Make a test commit to verify hooks run automatically
+git commit --allow-empty -m "test: verify hooks are working"
 ```
 
 ## Development Workflow
@@ -47,20 +108,36 @@ Use descriptive branch names:
 
 ### 3. Pre-Commit Checks
 
-Before committing, the following checks run automatically:
+Before committing, the following checks run automatically (via Git hooks):
 
 ```bash
-# Code formatting (Spotless)
+# 1. Code formatting (Spotless)
 mvn spotless:apply
 
-# Unit tests with coverage (JUnit 5 + JaCoCo)
+# 2. Unit tests with coverage (JUnit 5 + JaCoCo)
 mvn clean test
 
-# Code quality analysis (SonarCloud)
+# 3. Code quality analysis (SonarCloud)
 sonar-scanner
 ```
 
 All checks must pass before a commit is accepted.
+
+**To run checks manually**:
+```bash
+# Load environment variables
+export $(grep -v '^#' .env | xargs)
+
+# Run pre-commit hook manually
+.git/hooks/pre-commit
+```
+
+**If checks fail**:
+- Fix the issues reported
+- Re-run the checks
+- Commit again
+
+**Never skip hooks**: The hooks ensure code quality and prevent broken code from being committed.
 
 ### 4. Commit Messages
 
