@@ -79,8 +79,7 @@ class CryoliteConfigTest {
 
   @Test
   void testEngineOptionsImmutability() {
-    CryoliteConfig config =
-        new CryoliteConfig.Builder().engineOption("key", "value").build();
+    CryoliteConfig config = new CryoliteConfig.Builder().engineOption("key", "value").build();
 
     var options = config.getEngineOptions();
     options.put("newKey", "newValue");

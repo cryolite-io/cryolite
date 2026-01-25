@@ -18,11 +18,13 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <iceberg.version>1.6.0</iceberg.version>
-        <calcite.version>1.37.0</calcite.version>
-        <arrow.version>15.0.0</arrow.version>
-        <junit.version>5.10.1</junit.version>
-        <mockito.version>5.2.0</mockito.version>
+        <!-- Core dependencies aligned with Iceberg 1.10.1 -->
+        <iceberg.version>1.10.1</iceberg.version>
+        <calcite.version>1.40.0</calcite.version>
+        <arrow.version>15.0.2</arrow.version>
+        <!-- Test dependencies -->
+        <junit.version>5.13.4</junit.version>
+        <mockito.version>4.11.0</mockito.version>
     </properties>
 
     <dependencies>
