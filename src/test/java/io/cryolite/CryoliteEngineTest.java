@@ -28,6 +28,18 @@ class CryoliteEngineTest {
   }
 
   @Test
+  void testEngineCloseIdempotent() {
+    CryoliteConfig config = new CryoliteConfig.Builder().build();
+    CryoliteEngine engine = new CryoliteEngine(config);
+
+    engine.close();
+    assertTrue(engine.isClosed());
+    // Calling close again should be safe (idempotent)
+    engine.close();
+    assertTrue(engine.isClosed());
+  }
+
+  @Test
   void testEngineNullConfig() {
     assertThrows(IllegalArgumentException.class, () -> new CryoliteEngine(null));
   }

@@ -55,7 +55,7 @@ public class CryoliteEngine {
   public void close() {
     if (!closed) {
       closed = true;
-      // TODO: Release resources (catalog, storage, etc.)
+      // Release resources (catalog, storage, etc.) - to be implemented in future milestones
     }
   }
 
