@@ -34,21 +34,12 @@ public class CryoliteEngine {
     }
     this.config = config;
 
-    // Initialize catalog manager
-    String catalogUri =
-        config.getCatalogOptions().getOrDefault("uri", "http://localhost:8181/api/catalog");
-    this.catalogManager = new CatalogManager(catalogUri, config.getCatalogOptions());
+    // Initialize catalog manager with both catalog and storage options
+    // (catalog needs storage config for io-impl)
+    this.catalogManager = new CatalogManager(config.getCatalogOptions(), config.getStorageOptions());
 
-    // Initialize storage manager
-    String endpoint = config.getStorageOptions().getOrDefault("endpoint", "http://localhost:9000");
-    String accessKey = config.getStorageOptions().getOrDefault("access-key", "minioadmin");
-    String secretKey = config.getStorageOptions().getOrDefault("secret-key", "minioadmin");
-    String warehousePath =
-        config.getStorageOptions().getOrDefault("warehouse-path", "s3://cryolite-warehouse");
-
-    this.storageManager =
-        new StorageManager(
-            endpoint, accessKey, secretKey, warehousePath, config.getStorageOptions());
+    // Initialize storage manager with storage options
+    this.storageManager = new StorageManager(config.getStorageOptions());
   }
 
   /**

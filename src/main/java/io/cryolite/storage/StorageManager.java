@@ -2,14 +2,15 @@ package io.cryolite.storage;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.iceberg.aws.s3.S3FileIO;
 import org.apache.iceberg.io.FileIO;
 
 /**
- * Manages storage connections (S3/MinIO).
+ * Manages storage connections for various backends (S3, Azure, GCS, local, etc.).
  *
- * <p>Handles initialization and lifecycle of S3-compatible storage connections for Iceberg data
- * files using Iceberg's native S3FileIO.
+ * <p>Handles initialization and lifecycle of storage connections for Iceberg data files. The
+ * storage backend is determined by the "io-impl" option which specifies the fully qualified class
+ * name of the FileIO implementation. All configuration options are passed directly to the FileIO
+ * implementation.
  *
  * @since 0.1.0
  */
@@ -20,48 +21,57 @@ public class StorageManager {
   private volatile boolean closed = false;
 
   /**
-   * Creates a StorageManager for S3-compatible storage.
+   * Creates a StorageManager with the specified storage backend.
    *
-   * @param endpoint the S3 endpoint (e.g., http://localhost:9000)
-   * @param accessKey the S3 access key
-   * @param secretKey the S3 secret key
-   * @param warehousePath the warehouse path (e.g., s3://bucket/warehouse)
-   * @param storageOptions additional storage configuration options
-   * @throws IllegalArgumentException if required parameters are null or empty
+   * <p>The FileIO implementation is determined by the "io-impl" property. If not specified,
+   * defaults to "org.apache.iceberg.aws.s3.S3FileIO".
+   *
+   * <p>All options are passed directly to the FileIO implementation. The user is responsible for
+   * providing correctly named parameters for the chosen backend (e.g., s3.endpoint,
+   * s3.access-key-id for S3FileIO).
+   *
+   * @param storageOptions storage configuration options (io-impl, warehouse-path, and
+   *     backend-specific options)
+   * @throws IllegalArgumentException if required parameters are missing or invalid
    * @throws Exception if FileIO initialization fails
    */
-  public StorageManager(
-      String endpoint,
-      String accessKey,
-      String secretKey,
-      String warehousePath,
-      Map<String, String> storageOptions)
-      throws Exception {
-    if (endpoint == null || endpoint.isEmpty()) {
-      throw new IllegalArgumentException("Endpoint cannot be null or empty");
+  public StorageManager(Map<String, String> storageOptions) throws Exception {
+    if (storageOptions == null) {
+      throw new IllegalArgumentException("Storage options cannot be null");
     }
+
+    // Extract warehouse path (required for all backends)
+    this.warehousePath = storageOptions.get("warehouse-path");
     if (warehousePath == null || warehousePath.isEmpty()) {
-      throw new IllegalArgumentException("Warehouse path cannot be null or empty");
+      throw new IllegalArgumentException("warehouse-path is required");
     }
 
-    this.warehousePath = warehousePath;
+    // Get FileIO implementation class (default: S3FileIO)
+    String ioImpl =
+        storageOptions.getOrDefault("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
 
-    // Configure S3FileIO with AWS SDK v2 properties
-    Map<String, String> properties = new HashMap<>();
-    properties.put("s3.endpoint", endpoint);
-    properties.put("s3.access-key-id", accessKey);
-    properties.put("s3.secret-access-key", secretKey);
-    properties.put("s3.path-style-access", "true");
-    // Set a default region for MinIO (required by AWS SDK v2)
-    properties.put("client.region", "us-west-2");
+    // Create properties map from storage options (pass through all options)
+    Map<String, String> properties = new HashMap<>(storageOptions);
 
-    // Apply additional storage options
-    properties.putAll(storageOptions);
+    // Dynamically instantiate FileIO implementation
+    try {
+      Class<?> fileIOClass = Class.forName(ioImpl);
+      Object fileIOInstance = fileIOClass.getDeclaredConstructor().newInstance();
 
-    // Initialize S3FileIO
-    S3FileIO s3FileIO = new S3FileIO();
-    s3FileIO.initialize(properties);
-    this.fileIO = s3FileIO;
+      if (!(fileIOInstance instanceof FileIO)) {
+        throw new IllegalArgumentException(
+            "Class " + ioImpl + " does not implement org.apache.iceberg.io.FileIO");
+      }
+
+      this.fileIO = (FileIO) fileIOInstance;
+      this.fileIO.initialize(properties);
+
+    } catch (ClassNotFoundException e) {
+      throw new IllegalArgumentException("FileIO implementation class not found: " + ioImpl, e);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalArgumentException(
+          "Failed to instantiate FileIO implementation: " + ioImpl, e);
+    }
   }
 
   /**

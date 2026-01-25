@@ -25,8 +25,9 @@ class CatalogManagerTest {
     Thread.sleep(5000);
   }
 
-  private Map<String, String> createTestOptions() {
+  private Map<String, String> createCatalogOptions() {
     Map<String, String> options = new HashMap<>();
+    options.put("uri", TestConfig.getPolarisUri());
     options.put(
         "credential", TestConfig.getPolarisClientId() + ":" + TestConfig.getPolarisClientSecret());
     options.put("scope", TestConfig.getPolarisScope());
@@ -34,10 +35,23 @@ class CatalogManagerTest {
     return options;
   }
 
+  private Map<String, String> createStorageOptions() {
+    Map<String, String> options = new HashMap<>();
+    options.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+    options.put("s3.endpoint", TestConfig.getMinioEndpoint());
+    options.put("s3.access-key-id", TestConfig.getMinioAccessKey());
+    options.put("s3.secret-access-key", TestConfig.getMinioSecretKey());
+    options.put("s3.path-style-access", "true");
+    options.put("client.region", "us-west-2");
+    options.put("warehouse-path", TestConfig.getMinioWarehousePath());
+    return options;
+  }
+
   @Test
   void testCatalogManagerCreation() {
-    Map<String, String> options = createTestOptions();
-    CatalogManager manager = new CatalogManager(TestConfig.getPolarisUri(), options);
+    Map<String, String> catalogOptions = createCatalogOptions();
+    Map<String, String> storageOptions = createStorageOptions();
+    CatalogManager manager = new CatalogManager(catalogOptions, storageOptions);
 
     assertNotNull(manager);
     assertFalse(manager.isClosed());
@@ -46,21 +60,30 @@ class CatalogManagerTest {
   }
 
   @Test
-  void testCatalogManagerNullUri() {
-    Map<String, String> options = new HashMap<>();
-    assertThrows(IllegalArgumentException.class, () -> new CatalogManager(null, options));
+  void testCatalogManagerNullCatalogOptions() {
+    Map<String, String> storageOptions = createStorageOptions();
+    assertThrows(IllegalArgumentException.class, () -> new CatalogManager(null, storageOptions));
+  }
+
+  @Test
+  void testCatalogManagerNullStorageOptions() {
+    Map<String, String> catalogOptions = createCatalogOptions();
+    assertThrows(IllegalArgumentException.class, () -> new CatalogManager(catalogOptions, null));
   }
 
   @Test
   void testCatalogManagerEmptyUri() {
-    Map<String, String> options = new HashMap<>();
-    assertThrows(IllegalArgumentException.class, () -> new CatalogManager("", options));
+    Map<String, String> catalogOptions = createCatalogOptions();
+    Map<String, String> storageOptions = createStorageOptions();
+    catalogOptions.put("uri", "");
+    assertThrows(IllegalArgumentException.class, () -> new CatalogManager(catalogOptions, storageOptions));
   }
 
   @Test
   void testCatalogManagerClose() {
-    Map<String, String> options = createTestOptions();
-    CatalogManager manager = new CatalogManager(TestConfig.getPolarisUri(), options);
+    Map<String, String> catalogOptions = createCatalogOptions();
+    Map<String, String> storageOptions = createStorageOptions();
+    CatalogManager manager = new CatalogManager(catalogOptions, storageOptions);
 
     assertFalse(manager.isClosed());
     manager.close();
@@ -69,8 +92,9 @@ class CatalogManagerTest {
 
   @Test
   void testCatalogManagerCloseIdempotent() {
-    Map<String, String> options = createTestOptions();
-    CatalogManager manager = new CatalogManager(TestConfig.getPolarisUri(), options);
+    Map<String, String> catalogOptions = createCatalogOptions();
+    Map<String, String> storageOptions = createStorageOptions();
+    CatalogManager manager = new CatalogManager(catalogOptions, storageOptions);
 
     manager.close();
     assertTrue(manager.isClosed());
@@ -81,8 +105,9 @@ class CatalogManagerTest {
 
   @Test
   void testCatalogManagerGetCatalogWhenClosed() {
-    Map<String, String> options = createTestOptions();
-    CatalogManager manager = new CatalogManager(TestConfig.getPolarisUri(), options);
+    Map<String, String> catalogOptions = createCatalogOptions();
+    Map<String, String> storageOptions = createStorageOptions();
+    CatalogManager manager = new CatalogManager(catalogOptions, storageOptions);
     manager.close();
 
     assertThrows(IllegalStateException.class, manager::getCatalog);
@@ -90,8 +115,9 @@ class CatalogManagerTest {
 
   @Test
   void testCatalogManagerIsHealthyWhenClosed() {
-    Map<String, String> options = createTestOptions();
-    CatalogManager manager = new CatalogManager(TestConfig.getPolarisUri(), options);
+    Map<String, String> catalogOptions = createCatalogOptions();
+    Map<String, String> storageOptions = createStorageOptions();
+    CatalogManager manager = new CatalogManager(catalogOptions, storageOptions);
     manager.close();
 
     assertFalse(manager.isHealthy());
@@ -99,8 +125,9 @@ class CatalogManagerTest {
 
   @Test
   void testCatalogManagerIsHealthy() {
-    Map<String, String> options = createTestOptions();
-    CatalogManager manager = new CatalogManager(TestConfig.getPolarisUri(), options);
+    Map<String, String> catalogOptions = createCatalogOptions();
+    Map<String, String> storageOptions = createStorageOptions();
+    CatalogManager manager = new CatalogManager(catalogOptions, storageOptions);
 
     // With Docker Compose running, test the actual health check against Polaris
     // This executes catalog.listTables() to verify connectivity

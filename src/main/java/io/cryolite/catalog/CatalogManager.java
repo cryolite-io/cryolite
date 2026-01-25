@@ -25,11 +25,20 @@ public class CatalogManager {
   /**
    * Creates a CatalogManager with a REST catalog.
    *
-   * @param catalogUri the REST catalog URI (e.g., http://localhost:8181)
-   * @param catalogOptions additional catalog configuration options
-   * @throws IllegalArgumentException if catalogUri is null or empty
+   * @param catalogOptions catalog configuration options (uri, credential, scope, warehouse, etc.)
+   * @param storageOptions storage configuration options (io-impl and backend-specific options)
+   * @throws IllegalArgumentException if required parameters are missing or invalid
    */
-  public CatalogManager(String catalogUri, Map<String, String> catalogOptions) {
+  public CatalogManager(Map<String, String> catalogOptions, Map<String, String> storageOptions) {
+    if (catalogOptions == null) {
+      throw new IllegalArgumentException("Catalog options cannot be null");
+    }
+    if (storageOptions == null) {
+      throw new IllegalArgumentException("Storage options cannot be null");
+    }
+
+    // Extract URI with default
+    String catalogUri = catalogOptions.getOrDefault("uri", "http://localhost:8181/api/catalog");
     if (catalogUri == null || catalogUri.isEmpty()) {
       throw new IllegalArgumentException("Catalog URI cannot be null or empty");
     }
@@ -38,8 +47,12 @@ public class CatalogManager {
     Map<String, String> properties = new java.util.HashMap<>(catalogOptions);
     properties.put("uri", catalogUri);
 
-    // Use S3FileIO instead of ResolvingFileIO (which requires Hadoop)
-    properties.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+    // Get io-impl from storage options (with default)
+    String ioImpl = storageOptions.getOrDefault("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+    properties.put("io-impl", ioImpl);
+
+    // Pass through all storage options (for FileIO initialization)
+    properties.putAll(storageOptions);
 
     // Add OAuth credentials if provided
     if (catalogOptions.containsKey(CREDENTIAL_KEY)) {

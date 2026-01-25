@@ -30,9 +30,12 @@ class CryoliteEngineTest {
             TestConfig.getPolarisClientId() + ":" + TestConfig.getPolarisClientSecret())
         .catalogOption("scope", TestConfig.getPolarisScope())
         .catalogOption("warehouse", TestConfig.getPolarisWarehouse())
-        .storageOption("endpoint", TestConfig.getMinioEndpoint())
-        .storageOption("access-key", TestConfig.getMinioAccessKey())
-        .storageOption("secret-key", TestConfig.getMinioSecretKey())
+        .storageOption("io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
+        .storageOption("s3.endpoint", TestConfig.getMinioEndpoint())
+        .storageOption("s3.access-key-id", TestConfig.getMinioAccessKey())
+        .storageOption("s3.secret-access-key", TestConfig.getMinioSecretKey())
+        .storageOption("s3.path-style-access", "true")
+        .storageOption("client.region", "us-west-2")
         .storageOption("warehouse-path", TestConfig.getMinioWarehousePath())
         .build();
   }

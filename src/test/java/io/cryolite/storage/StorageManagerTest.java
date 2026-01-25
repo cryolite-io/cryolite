@@ -25,16 +25,24 @@ class StorageManagerTest {
     Thread.sleep(5000);
   }
 
+  private Map<String, String> createTestOptions() {
+    Map<String, String> options = new HashMap<>();
+    // Specify FileIO implementation
+    options.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+    // Use S3FileIO property names directly
+    options.put("s3.endpoint", TestConfig.getMinioEndpoint());
+    options.put("s3.access-key-id", TestConfig.getMinioAccessKey());
+    options.put("s3.secret-access-key", TestConfig.getMinioSecretKey());
+    options.put("s3.path-style-access", "true");
+    options.put("client.region", "us-west-2");
+    options.put("warehouse-path", TestConfig.getMinioWarehousePath());
+    return options;
+  }
+
   @Test
   void testStorageManagerCreation() throws Exception {
-    Map<String, String> options = new HashMap<>();
-    StorageManager manager =
-        new StorageManager(
-            TestConfig.getMinioEndpoint(),
-            TestConfig.getMinioAccessKey(),
-            TestConfig.getMinioSecretKey(),
-            TestConfig.getMinioWarehousePath(),
-            options);
+    Map<String, String> options = createTestOptions();
+    StorageManager manager = new StorageManager(options);
 
     assertNotNull(manager);
     assertFalse(manager.isClosed());
@@ -44,71 +52,50 @@ class StorageManagerTest {
   }
 
   @Test
-  void testStorageManagerNullEndpoint() {
-    Map<String, String> options = new HashMap<>();
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new StorageManager(
-                null,
-                TestConfig.getMinioAccessKey(),
-                TestConfig.getMinioSecretKey(),
-                TestConfig.getMinioWarehousePath(),
-                options));
+  void testStorageManagerNullOptions() {
+    assertThrows(IllegalArgumentException.class, () -> new StorageManager(null));
   }
 
   @Test
-  void testStorageManagerEmptyEndpoint() {
-    Map<String, String> options = new HashMap<>();
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new StorageManager(
-                "",
-                TestConfig.getMinioAccessKey(),
-                TestConfig.getMinioSecretKey(),
-                TestConfig.getMinioWarehousePath(),
-                options));
+  void testStorageManagerMissingWarehousePath() {
+    Map<String, String> options = createTestOptions();
+    options.remove("warehouse-path");
+    assertThrows(IllegalArgumentException.class, () -> new StorageManager(options));
   }
 
   @Test
   void testStorageManagerNullWarehousePath() {
-    Map<String, String> options = new HashMap<>();
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new StorageManager(
-                TestConfig.getMinioEndpoint(),
-                TestConfig.getMinioAccessKey(),
-                TestConfig.getMinioSecretKey(),
-                null,
-                options));
+    Map<String, String> options = createTestOptions();
+    options.put("warehouse-path", null);
+    assertThrows(IllegalArgumentException.class, () -> new StorageManager(options));
   }
 
   @Test
   void testStorageManagerEmptyWarehousePath() {
-    Map<String, String> options = new HashMap<>();
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new StorageManager(
-                TestConfig.getMinioEndpoint(),
-                TestConfig.getMinioAccessKey(),
-                TestConfig.getMinioSecretKey(),
-                "",
-                options));
+    Map<String, String> options = createTestOptions();
+    options.put("warehouse-path", "");
+    assertThrows(IllegalArgumentException.class, () -> new StorageManager(options));
+  }
+
+  @Test
+  void testStorageManagerInvalidIOImpl() {
+    Map<String, String> options = createTestOptions();
+    options.put("io-impl", "com.example.NonExistentFileIO");
+    assertThrows(IllegalArgumentException.class, () -> new StorageManager(options));
+  }
+
+  @Test
+  void testStorageManagerNonFileIOClass() {
+    Map<String, String> options = createTestOptions();
+    // Use a class that exists but doesn't implement FileIO
+    options.put("io-impl", "java.lang.String");
+    assertThrows(IllegalArgumentException.class, () -> new StorageManager(options));
   }
 
   @Test
   void testStorageManagerClose() throws Exception {
-    Map<String, String> options = new HashMap<>();
-    StorageManager manager =
-        new StorageManager(
-            TestConfig.getMinioEndpoint(),
-            TestConfig.getMinioAccessKey(),
-            TestConfig.getMinioSecretKey(),
-            TestConfig.getMinioWarehousePath(),
-            options);
+    Map<String, String> options = createTestOptions();
+    StorageManager manager = new StorageManager(options);
 
     assertFalse(manager.isClosed());
     manager.close();
@@ -117,14 +104,8 @@ class StorageManagerTest {
 
   @Test
   void testStorageManagerCloseIdempotent() throws Exception {
-    Map<String, String> options = new HashMap<>();
-    StorageManager manager =
-        new StorageManager(
-            TestConfig.getMinioEndpoint(),
-            TestConfig.getMinioAccessKey(),
-            TestConfig.getMinioSecretKey(),
-            TestConfig.getMinioWarehousePath(),
-            options);
+    Map<String, String> options = createTestOptions();
+    StorageManager manager = new StorageManager(options);
 
     manager.close();
     assertTrue(manager.isClosed());
@@ -135,14 +116,8 @@ class StorageManagerTest {
 
   @Test
   void testStorageManagerGetFileIOWhenClosed() throws Exception {
-    Map<String, String> options = new HashMap<>();
-    StorageManager manager =
-        new StorageManager(
-            TestConfig.getMinioEndpoint(),
-            TestConfig.getMinioAccessKey(),
-            TestConfig.getMinioSecretKey(),
-            TestConfig.getMinioWarehousePath(),
-            options);
+    Map<String, String> options = createTestOptions();
+    StorageManager manager = new StorageManager(options);
     manager.close();
 
     assertThrows(IllegalStateException.class, manager::getFileIO);
@@ -150,14 +125,8 @@ class StorageManagerTest {
 
   @Test
   void testStorageManagerGetWarehousePathWhenClosed() throws Exception {
-    Map<String, String> options = new HashMap<>();
-    StorageManager manager =
-        new StorageManager(
-            TestConfig.getMinioEndpoint(),
-            TestConfig.getMinioAccessKey(),
-            TestConfig.getMinioSecretKey(),
-            TestConfig.getMinioWarehousePath(),
-            options);
+    Map<String, String> options = createTestOptions();
+    StorageManager manager = new StorageManager(options);
     manager.close();
 
     assertThrows(IllegalStateException.class, manager::getWarehousePath);
@@ -165,14 +134,8 @@ class StorageManagerTest {
 
   @Test
   void testStorageManagerIsHealthyWhenClosed() throws Exception {
-    Map<String, String> options = new HashMap<>();
-    StorageManager manager =
-        new StorageManager(
-            TestConfig.getMinioEndpoint(),
-            TestConfig.getMinioAccessKey(),
-            TestConfig.getMinioSecretKey(),
-            TestConfig.getMinioWarehousePath(),
-            options);
+    Map<String, String> options = createTestOptions();
+    StorageManager manager = new StorageManager(options);
     manager.close();
 
     assertFalse(manager.isHealthy());
@@ -180,14 +143,8 @@ class StorageManagerTest {
 
   @Test
   void testStorageManagerIsHealthy() throws Exception {
-    Map<String, String> options = new HashMap<>();
-    StorageManager manager =
-        new StorageManager(
-            TestConfig.getMinioEndpoint(),
-            TestConfig.getMinioAccessKey(),
-            TestConfig.getMinioSecretKey(),
-            TestConfig.getMinioWarehousePath(),
-            options);
+    Map<String, String> options = createTestOptions();
+    StorageManager manager = new StorageManager(options);
 
     // With Docker Compose running, test the actual health check against MinIO
     // This executes fileIO.newInputFile() to verify connectivity
