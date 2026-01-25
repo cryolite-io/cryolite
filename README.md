@@ -1,6 +1,6 @@
 # CRYOLITE
 
-**CRYOLITE Runs Your Open Lightweight Iceberg Table Engine**
+**C**RYOLITE **R**uns **Y**our **O**pen **L**ightweight **I**ceberg **T**able **E**ngine *(recursive acronym)*
 
 An embedded, lightweight Apache Iceberg table and query engine for Java applications.
 
@@ -125,7 +125,7 @@ mvn clean test
 ```
 cryolite/
 ├── src/main/java/io/cryolite/     # Main source code
-├── src/test/java/io/cryolite/     # Unit tests (100% coverage)
+├── src/test/java/io/cryolite/     # Unit tests (85%+ coverage)
 ├── pom.xml                         # Maven configuration
 ├── docker-compose.yml              # Docker services (Polaris + MinIO)
 ├── .env                            # Environment variables (secrets)
