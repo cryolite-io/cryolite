@@ -20,7 +20,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- Core dependencies aligned with Iceberg 1.10.1 -->
         <iceberg.version>1.10.1</iceberg.version>
-        <calcite.version>1.40.0</calcite.version>
+        <calcite.version>1.41.0</calcite.version>
         <arrow.version>18.3.0</arrow.version>
         <!-- AWS SDK -->
         <aws.sdk.version>2.41.19</aws.sdk.version>
