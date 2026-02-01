@@ -21,24 +21,24 @@ cd cryolite
 # 2. Configure environment variables
 cp .env.example .env
 
-# 3. Edit .env and set your SonarCloud token
-# Get your token from: https://sonarcloud.io/account/security
-nano .env  # Set SONAR_TOKEN=your_token_here
+# 3. Edit .env and set your tokens
+# - SONAR_TOKEN: Get from https://sonarcloud.io/account/security
+# - NVD_API_KEY (optional): Get from https://nvd.nist.gov/developers/request-an-api-key
+nano .env
 
 # 4. Install Git hooks (REQUIRED for all contributors)
-# The hooks are in .git/hooks/ and need to be created
-# See "Git Hooks Setup" section below
+./scripts/hooks/install-hooks.sh
+# See "Git Hooks Setup" section below for details
 
 # 5. Start Docker services
-docker-compose up -d
+make docker-up
 
 # 6. Get auto-generated Polaris credentials
 docker logs cryolite-polaris-setup | grep "POLARIS_CLIENT_ID"
 # Copy the output to your .env file
 
-# 7. Load environment and test
-export $(grep -v '^#' .env | xargs)
-mvn clean test
+# 7. Run tests
+make test
 ```
 
 ### Git Hooks Setup
@@ -108,25 +108,25 @@ Use descriptive branch names:
 
 ### 3. Pre-Commit Checks
 
-Before committing, the following checks run automatically (via Git hooks):
+Before committing, the following checks run automatically via `make verify-with-quality`:
 
-```bash
-# 1. Code formatting (Spotless)
-mvn spotless:apply
-
-# 2. Unit tests with coverage (JUnit 5 + JaCoCo)
-mvn clean test
-
-# 3. Code quality analysis (SonarCloud)
-sonar-scanner
-```
+1. ✅ Code formatting (Spotless)
+2. ✅ Unit tests with coverage (JUnit 5 + JaCoCo, 85% minimum)
+3. ✅ Dependency vulnerability check (OWASP, CVSS ≥ 7.0)
+4. ✅ Code quality analysis (SonarCloud)
 
 All checks must pass before a commit is accepted.
 
 **To run checks manually**:
 ```bash
-# Load environment variables
-export $(grep -v '^#' .env | xargs)
+# Run all verification checks (Makefile loads .env automatically)
+make verify
+
+# Or run individual checks
+make format              # Format code
+make test                # Run tests
+make dependency-check    # Check for vulnerabilities
+make quality             # SonarCloud analysis
 
 # Run pre-commit hook manually
 .git/hooks/pre-commit
@@ -194,6 +194,7 @@ Then create a PR on GitHub with:
 - ✅ **Minimum 85% Line Coverage** (enforced by JaCoCo, focus on meaningful tests)
 - ✅ **Code Formatting** (Google Java Format via Spotless)
 - ✅ **SonarCloud Quality Gate** (no critical/high issues)
+- ✅ **Dependency Security** (OWASP check, CVSS ≥ 7.0 fails build)
 - ✅ **Conventional Commits** (enforced by git hooks)
 - ✅ **All Tests Pass** (JUnit 5)
 
@@ -233,9 +234,11 @@ We enforce a **85% minimum line coverage** threshold instead of 100% because:
 ### Run Tests
 
 ```bash
-# All tests (requires Docker Compose services running)
-docker-compose up -d
-mvn clean test
+# Start Docker services (if not already running)
+make docker-up
+
+# All tests (Makefile loads .env automatically)
+make test
 
 # Specific test class
 mvn test -Dtest=CryoliteEngineTest
@@ -243,6 +246,9 @@ mvn test -Dtest=CryoliteEngineTest
 # With coverage report
 mvn clean test jacoco:report
 # Report: target/site/jacoco/index.html
+
+# Run all verification checks
+make verify
 ```
 
 ### Test Structure

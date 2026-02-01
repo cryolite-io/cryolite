@@ -78,6 +78,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       polaris.realm-context.realms: ${POLARIS_REALM:-POLARIS}
       quarkus.otel.sdk.disabled: "true"
+      # Enable drop with purge for table cleanup
+      polaris.features.DROP_WITH_PURGE_ENABLED: "true"
       # PostgreSQL persistent storage configuration
       POLARIS_PERSISTENCE_TYPE: relational-jdbc
       QUARKUS_DATASOURCE_DB_KIND: postgresql

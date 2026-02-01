@@ -2,46 +2,24 @@ package io.cryolite;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-/** Tests for CryoliteEngine. */
-class CryoliteEngineTest {
+/** Tests for CryoliteEngine lifecycle and core functionality. */
+class CryoliteEngineTest extends AbstractIntegrationTest {
 
-  @BeforeAll
-  static void ensureDockerComposeRunning() throws Exception {
-    // Ensure Docker Compose services are running before tests
-    ProcessBuilder pb = new ProcessBuilder("docker-compose", "up", "-d");
-    pb.redirectErrorStream(true);
-    Process process = pb.start();
-    int exitCode = process.waitFor();
-    if (exitCode != 0) {
-      throw new RuntimeException("Failed to start Docker Compose services");
-    }
-    // Give services time to become healthy
-    Thread.sleep(5000);
-  }
-
-  private CryoliteConfig createTestConfig() {
-    return new CryoliteConfig.Builder()
-        .catalogOption("uri", TestConfig.getPolarisUri())
-        .catalogOption(
-            "credential",
-            TestConfig.getPolarisClientId() + ":" + TestConfig.getPolarisClientSecret())
-        .catalogOption("scope", TestConfig.getPolarisScope())
-        .catalogOption("warehouse", TestConfig.getPolarisWarehouse())
-        .storageOption("io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
-        .storageOption("s3.endpoint", TestConfig.getMinioEndpoint())
-        .storageOption("s3.access-key-id", TestConfig.getMinioAccessKey())
-        .storageOption("s3.secret-access-key", TestConfig.getMinioSecretKey())
-        .storageOption("s3.path-style-access", "true")
-        .storageOption("client.region", "us-west-2")
-        .storageOption("warehouse-path", TestConfig.getMinioWarehousePath())
-        .build();
-  }
-
+  /**
+   * Tests that a CryoliteEngine can be successfully created with a valid configuration.
+   *
+   * <p>Verifies that:
+   *
+   * <ul>
+   *   <li>The engine instance is not null
+   *   <li>The engine is not closed after creation
+   *   <li>The engine returns the same config instance that was passed to the constructor
+   * </ul>
+   */
   @Test
-  void testEngineCreation() throws Exception {
+  void testEngineCreation() {
     CryoliteConfig config = createTestConfig();
     CryoliteEngine engine = new CryoliteEngine(config);
 
@@ -51,8 +29,18 @@ class CryoliteEngineTest {
     engine.close();
   }
 
+  /**
+   * Tests that closing the engine properly updates its state.
+   *
+   * <p>Verifies that:
+   *
+   * <ul>
+   *   <li>The engine is not closed initially
+   *   <li>After calling close(), isClosed() returns true
+   * </ul>
+   */
   @Test
-  void testEngineClose() throws Exception {
+  void testEngineClose() {
     CryoliteConfig config = createTestConfig();
     CryoliteEngine engine = new CryoliteEngine(config);
 
@@ -61,8 +49,19 @@ class CryoliteEngineTest {
     assertTrue(engine.isClosed());
   }
 
+  /**
+   * Tests that calling close() multiple times is safe (idempotent operation).
+   *
+   * <p>Verifies that:
+   *
+   * <ul>
+   *   <li>The first close() call marks the engine as closed
+   *   <li>Subsequent close() calls do not throw exceptions
+   *   <li>The engine remains closed after multiple close() calls
+   * </ul>
+   */
   @Test
-  void testEngineCloseIdempotent() throws Exception {
+  void testEngineCloseIdempotent() {
     CryoliteConfig config = createTestConfig();
     CryoliteEngine engine = new CryoliteEngine(config);
 
@@ -73,13 +72,29 @@ class CryoliteEngineTest {
     assertTrue(engine.isClosed());
   }
 
+  /**
+   * Tests that creating an engine with a null configuration throws IllegalArgumentException.
+   *
+   * <p>This is a defensive programming test to ensure the engine fails fast with a clear error
+   * message when given invalid input.
+   */
   @Test
   void testEngineNullConfig() {
     assertThrows(IllegalArgumentException.class, () -> new CryoliteEngine(null));
   }
 
+  /**
+   * Tests that the engine's toString() method returns a meaningful string representation.
+   *
+   * <p>Verifies that:
+   *
+   * <ul>
+   *   <li>toString() returns a non-null string
+   *   <li>The string contains "CryoliteEngine" for easy identification
+   * </ul>
+   */
   @Test
-  void testEngineToString() throws Exception {
+  void testEngineToString() {
     CryoliteConfig config = createTestConfig();
     CryoliteEngine engine = new CryoliteEngine(config);
 
@@ -89,44 +104,46 @@ class CryoliteEngineTest {
     engine.close();
   }
 
+  /**
+   * Tests that getCatalog() returns a valid Iceberg Catalog instance.
+   *
+   * <p>This is the primary API for interacting with the Iceberg catalog. The catalog provides
+   * access to namespace and table operations.
+   */
   @Test
-  void testGetCatalogManager() throws Exception {
+  void testGetCatalog() {
     CryoliteConfig config = createTestConfig();
     CryoliteEngine engine = new CryoliteEngine(config);
 
-    assertNotNull(engine.getCatalogManager());
+    assertNotNull(engine.getCatalog());
     engine.close();
   }
 
+  /**
+   * Tests that calling getCatalog() on a closed engine throws IllegalStateException.
+   *
+   * <p>This ensures that the engine fails fast when used incorrectly, preventing potential resource
+   * leaks or undefined behavior.
+   */
   @Test
-  void testGetCatalogManagerWhenClosed() throws Exception {
-    CryoliteConfig config = createTestConfig();
-    CryoliteEngine engine = new CryoliteEngine(config);
-    engine.close();
-
-    assertThrows(IllegalStateException.class, engine::getCatalogManager);
-  }
-
-  @Test
-  void testGetStorageManager() throws Exception {
-    CryoliteConfig config = createTestConfig();
-    CryoliteEngine engine = new CryoliteEngine(config);
-
-    assertNotNull(engine.getStorageManager());
-    engine.close();
-  }
-
-  @Test
-  void testGetStorageManagerWhenClosed() throws Exception {
+  void testGetCatalogWhenClosed() {
     CryoliteConfig config = createTestConfig();
     CryoliteEngine engine = new CryoliteEngine(config);
     engine.close();
 
-    assertThrows(IllegalStateException.class, engine::getStorageManager);
+    assertThrows(IllegalStateException.class, engine::getCatalog);
   }
 
+  /**
+   * Tests that the engine reports healthy status when services are running.
+   *
+   * <p>This is an integration test that verifies the health check logic against real Polaris and
+   * MinIO services running in Docker Compose.
+   *
+   * <p>The health check validates connectivity to both the catalog and storage services.
+   */
   @Test
-  void testIsHealthy() throws Exception {
+  void testIsHealthy() {
     CryoliteConfig config = createTestConfig();
     CryoliteEngine engine = new CryoliteEngine(config);
 
@@ -136,8 +153,14 @@ class CryoliteEngineTest {
     engine.close();
   }
 
+  /**
+   * Tests that a closed engine always reports unhealthy status.
+   *
+   * <p>Verifies that the health check correctly identifies a closed engine as unhealthy, regardless
+   * of the state of external services.
+   */
   @Test
-  void testIsHealthyWhenClosed() throws Exception {
+  void testIsHealthyWhenClosed() {
     CryoliteConfig config = createTestConfig();
     CryoliteEngine engine = new CryoliteEngine(config);
     engine.close();

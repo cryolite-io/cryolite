@@ -9,13 +9,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Loads test configuration from environment variables (typically from .env file). Secrets are never
- * hardcoded in test files.
+ * Loads test configuration from environment variables (typically from .env file).
  *
- * <p>Configuration priority: 1. System environment variables 2. .env file 3. Hardcoded defaults
+ * <p>Configuration priority: 1. .env file 2. System environment variables 3. Fail if not found
  *
  * <p>The .env file is automatically loaded from the project root directory when the class is first
  * accessed.
+ *
+ * <p><strong>IMPORTANT:</strong> No default credentials are provided. You must configure all
+ * required environment variables in your .env file or system environment.
  */
 public class TestConfig {
 
@@ -70,60 +72,68 @@ public class TestConfig {
   }
 
   public static String getPolarisUri() {
-    return getEnv("POLARIS_URI", "http://localhost:8181/api/catalog");
+    return getEnvRequired("POLARIS_URI");
   }
 
   public static String getPolarisClientId() {
-    return getEnv("POLARIS_CLIENT_ID", "polarisadmin");
+    return getEnvRequired("POLARIS_CLIENT_ID");
   }
 
   public static String getPolarisClientSecret() {
-    return getEnv("POLARIS_CLIENT_SECRET", "polarisadmin");
+    return getEnvRequired("POLARIS_CLIENT_SECRET");
   }
 
   public static String getPolarisWarehouse() {
-    return getEnv("POLARIS_WAREHOUSE", "cryolite_catalog");
+    return getEnvRequired("POLARIS_WAREHOUSE");
   }
 
   public static String getPolarisScope() {
-    return getEnv("POLARIS_SCOPE", "PRINCIPAL_ROLE:ALL");
+    return getEnvRequired("POLARIS_SCOPE");
   }
 
   public static String getMinioEndpoint() {
-    return getEnv("MINIO_ENDPOINT", "http://localhost:9000");
+    return getEnvRequired("MINIO_ENDPOINT");
   }
 
   public static String getMinioAccessKey() {
-    return getEnv("MINIO_ACCESS_KEY", "minioadmin");
+    return getEnvRequired("MINIO_ACCESS_KEY");
   }
 
   public static String getMinioSecretKey() {
-    return getEnv("MINIO_SECRET_KEY", "minioadmin");
+    return getEnvRequired("MINIO_SECRET_KEY");
   }
 
   public static String getMinioWarehousePath() {
-    return getEnv("MINIO_WAREHOUSE_PATH", "s3://cryolite-warehouse");
+    return getEnvRequired("MINIO_WAREHOUSE_PATH");
   }
 
   /**
-   * Gets environment variable value with fallback to .env file and default value.
+   * Gets required environment variable value.
    *
-   * <p>Priority: 1. System environment variable 2. .env file 3. Default value
+   * <p>Priority: 1. .env file 2. System environment variable
+   *
+   * @param envKey the environment variable key
+   * @return the environment variable value
+   * @throws IllegalStateException if the environment variable is not set
    */
-  private static String getEnv(String envKey, String defaultValue) {
-    // First check system environment variables
-    String envValue = System.getenv(envKey);
+  private static String getEnvRequired(String envKey) {
+    // First check .env file (project-specific configuration takes precedence)
+    String envValue = envVars.get(envKey);
     if (envValue != null && !envValue.isEmpty()) {
       return envValue;
     }
 
-    // Then check .env file
-    envValue = envVars.get(envKey);
+    // Then check system environment variables
+    envValue = System.getenv(envKey);
     if (envValue != null && !envValue.isEmpty()) {
       return envValue;
     }
 
-    // Finally use default
-    return defaultValue;
+    // Fail if not found
+    throw new IllegalStateException(
+        "Required environment variable '"
+            + envKey
+            + "' is not set. "
+            + "Please configure it in your .env file or system environment.");
   }
 }

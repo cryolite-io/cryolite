@@ -1,16 +1,29 @@
 package io.cryolite;
 
 import io.cryolite.catalog.CatalogManager;
-import io.cryolite.storage.StorageManager;
 
 /**
  * CRYOLITE Runs Your Open Lightweight Iceberg Table Engine.
  *
- * <p>CryoliteEngine is the main entry point for the embedded Iceberg table engine. It provides both
- * low-level and high-level APIs for working with Iceberg tables.
+ * <p>CryoliteEngine is the main entry point for the embedded Iceberg table engine. It provides
+ * access to the Iceberg Catalog for all table and namespace operations.
  *
  * <p>This is an embedded library - no CLI, no server, no REST service. It is designed to be used
  * directly from Java applications.
+ *
+ * <p>Usage example:
+ *
+ * <pre>{@code
+ * CryoliteEngine engine = new CryoliteEngine(config);
+ * Catalog catalog = engine.getCatalog();
+ *
+ * // Namespace operations (cast to SupportsNamespaces)
+ * SupportsNamespaces nsCatalog = (SupportsNamespaces) catalog;
+ * nsCatalog.createNamespace(Namespace.of("my_namespace"), Map.of());
+ *
+ * // Table operations
+ * catalog.createTable(TableIdentifier.of("my_namespace", "my_table"), schema);
+ * }</pre>
  *
  * @since 0.1.0
  */
@@ -18,7 +31,6 @@ public class CryoliteEngine {
 
   private final CryoliteConfig config;
   private final CatalogManager catalogManager;
-  private final StorageManager storageManager;
   private volatile boolean closed = false;
 
   /**
@@ -26,21 +38,14 @@ public class CryoliteEngine {
    *
    * @param config the engine configuration
    * @throws IllegalArgumentException if config is null
-   * @throws Exception if catalog or storage initialization fails
    */
-  public CryoliteEngine(CryoliteConfig config) throws Exception {
+  public CryoliteEngine(CryoliteConfig config) {
     if (config == null) {
       throw new IllegalArgumentException("Configuration cannot be null");
     }
     this.config = config;
-
-    // Initialize catalog manager with both catalog and storage options
-    // (catalog needs storage config for io-impl)
     this.catalogManager =
         new CatalogManager(config.getCatalogOptions(), config.getStorageOptions());
-
-    // Initialize storage manager with storage options
-    this.storageManager = new StorageManager(config.getStorageOptions());
   }
 
   /**
@@ -53,41 +58,30 @@ public class CryoliteEngine {
   }
 
   /**
-   * Returns the catalog manager.
+   * Returns the Iceberg Catalog for table and namespace operations.
    *
-   * @return the catalog manager
+   * <p>The returned catalog can be cast to {@code SupportsNamespaces} for namespace operations.
+   *
+   * @return the Iceberg Catalog
    * @throws IllegalStateException if engine is closed
    */
-  public CatalogManager getCatalogManager() {
+  public org.apache.iceberg.catalog.Catalog getCatalog() {
     if (closed) {
       throw new IllegalStateException("Engine is closed");
     }
-    return catalogManager;
+    return catalogManager.getCatalog();
   }
 
   /**
-   * Returns the storage manager.
+   * Checks if the engine is healthy (catalog is accessible).
    *
-   * @return the storage manager
-   * @throws IllegalStateException if engine is closed
-   */
-  public StorageManager getStorageManager() {
-    if (closed) {
-      throw new IllegalStateException("Engine is closed");
-    }
-    return storageManager;
-  }
-
-  /**
-   * Checks if the engine is healthy (catalog and storage are accessible).
-   *
-   * @return true if both catalog and storage are healthy, false otherwise
+   * @return true if catalog is healthy, false otherwise
    */
   public boolean isHealthy() {
     if (closed) {
       return false;
     }
-    return catalogManager.isHealthy() && storageManager.isHealthy();
+    return catalogManager.isHealthy();
   }
 
   /**
@@ -108,8 +102,6 @@ public class CryoliteEngine {
   public void close() {
     if (!closed) {
       closed = true;
-      // Release resources in reverse order
-      storageManager.close();
       catalogManager.close();
     }
   }
