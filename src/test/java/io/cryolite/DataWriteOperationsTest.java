@@ -3,6 +3,7 @@ package io.cryolite;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.cryolite.data.TableWriter;
+import io.cryolite.test.S3StorageTestHelper;
 import java.io.IOException;
 import java.util.HashMap;
 import org.apache.iceberg.DataFile;
@@ -21,7 +22,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Integration tests for low-level data write operations.
  *
- * <p>Tests the TableWriter class for writing data to Iceberg tables and committing snapshots.
+ * <p>Tests the TableWriter class for writing data to Iceberg tables and committing snapshots. Also
+ * verifies that data files are correctly written to S3-compatible storage.
  */
 class DataWriteOperationsTest extends AbstractIntegrationTest {
 
@@ -35,6 +37,7 @@ class DataWriteOperationsTest extends AbstractIntegrationTest {
    *   <li>Commit creates a new snapshot
    *   <li>Snapshot contains the expected number of data files
    *   <li>Data files are created in Parquet format
+   *   <li>Data files exist in S3-compatible storage
    * </ul>
    */
   @Test
@@ -69,7 +72,18 @@ class DataWriteOperationsTest extends AbstractIntegrationTest {
         // Verify committed files
         assertEquals(1, writer.getCommittedFiles().size());
         DataFile dataFile = writer.getCommittedFiles().get(0);
-        assertTrue(dataFile.path().toString().endsWith(".parquet"));
+        assertTrue(dataFile.location().endsWith(".parquet"));
+
+        // Verify file exists in S3 storage
+        S3StorageTestHelper s3Helper = new S3StorageTestHelper(createTestConfig());
+        String filePath = dataFile.location();
+        assertTrue(
+            s3Helper.fileExists(filePath), "Data file should exist in S3 storage: " + filePath);
+
+        // Verify file has content (size > 0)
+        long fileSize = s3Helper.getFileSize(filePath);
+        assertTrue(fileSize > 0, "Data file should have content, but size is: " + fileSize);
+        s3Helper.close();
       }
 
       // Reload table to get updated snapshot
@@ -99,6 +113,7 @@ class DataWriteOperationsTest extends AbstractIntegrationTest {
    *   <li>Data can be written to partitioned tables
    *   <li>Records are automatically routed to correct partitions
    *   <li>Multiple partition data files are created
+   *   <li>All data files exist in S3-compatible storage
    * </ul>
    */
   @Test
@@ -140,6 +155,20 @@ class DataWriteOperationsTest extends AbstractIntegrationTest {
 
         // Should have 3 data files (one per partition)
         assertEquals(3, writer.getCommittedFiles().size());
+
+        // Verify all files exist in S3 storage
+        S3StorageTestHelper s3Helper = new S3StorageTestHelper(createTestConfig());
+        for (DataFile dataFile : writer.getCommittedFiles()) {
+          String filePath = dataFile.location();
+          assertTrue(
+              s3Helper.fileExists(filePath),
+              "Partition data file should exist in S3 storage: " + filePath);
+
+          long fileSize = s3Helper.getFileSize(filePath);
+          assertTrue(
+              fileSize > 0, "Partition data file should have content, but size is: " + fileSize);
+        }
+        s3Helper.close();
       }
 
       // Reload and verify snapshot

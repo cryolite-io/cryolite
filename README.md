@@ -138,6 +138,7 @@ make verify
 cryolite/
 ├── src/main/java/io/cryolite/     # Main source code
 ├── src/test/java/io/cryolite/     # Unit tests (85%+ coverage)
+├── docs/                           # Detailed documentation
 ├── pom.xml                         # Maven configuration
 ├── Makefile                        # Centralized build commands
 ├── docker-compose.yml              # Docker services (Polaris + MinIO + PostgreSQL)
@@ -150,6 +151,8 @@ cryolite/
 ├── CONTRIBUTING.md                 # Contribution guidelines
 └── .gitignore                      # Git ignore rules
 ```
+
+For detailed documentation, see the [docs/](docs/) directory.
 
 ## Milestones
 
@@ -184,7 +187,19 @@ cryolite/
 - ✅ Added Dependabot for automated dependency updates
 - ✅ 43 unit tests with 85%+ coverage
 
-### Current: M3 – Low-Level DML: Write Path
+### ✅ M3 – Low-Level DML: Write Path (Completed)
+
+- ✅ `TableWriter` class for writing data to Iceberg tables
+- ✅ Support for both partitioned and unpartitioned tables
+- ✅ Automatic partition routing with `PartitionedFanoutWriter`
+- ✅ Snapshot creation and commit
+- ✅ Parquet file format
+- ✅ S3-compatible storage verification in tests
+- ✅ `S3StorageTestHelper` for end-to-end storage verification
+- ✅ 49 integration tests with 85%+ coverage
+- ✅ All tests verify both Iceberg metadata and physical files
+
+### Current: M4 – Low-Level Read: Scan + Arrow Result
 
 Coming soon...
 
