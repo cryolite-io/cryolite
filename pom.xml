@@ -22,6 +22,7 @@
         <iceberg.version>1.10.1</iceberg.version>
         <calcite.version>1.40.0</calcite.version>
         <arrow.version>18.3.0</arrow.version>
+        <hadoop.version>3.4.2</hadoop.version>
         <!-- AWS SDK -->
         <aws.sdk.version>2.41.19</aws.sdk.version>
         <!-- Netty (override transitive for security) -->
@@ -93,6 +94,71 @@
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-memory-netty</artifactId>
             <version>${arrow.version}</version>
+        </dependency>
+
+        <!-- Iceberg Data API for writing -->
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-data</artifactId>
+            <version>${iceberg.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-parquet</artifactId>
+            <version>${iceberg.version}</version>
+        </dependency>
+
+        <!-- Hadoop (required by Parquet writer for org.apache.hadoop.conf.Configuration).
+             We only need the Configuration class, so we aggressively exclude transitive
+             dependencies to minimize the dependency footprint and avoid CVE issues. -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>${hadoop.version}</version>
+            <exclusions>
+                <!-- Exclude logging conflicts -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>ch.qos.reload4j</groupId>
+                    <artifactId>reload4j</artifactId>
+                </exclusion>
+                <!-- Exclude Jetty (CVE-2025-5115, not needed for embedded use) -->
+                <exclusion>
+                    <groupId>org.eclipse.jetty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Exclude Jersey (not needed for embedded use) -->
+                <exclusion>
+                    <groupId>com.sun.jersey</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Exclude Servlet API (not needed for embedded use) -->
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet.jsp</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Exclude Curator/ZooKeeper (not needed for embedded use) -->
+                <exclusion>
+                    <groupId>org.apache.curator</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.zookeeper</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Exclude Avro (pulled in separately by Iceberg if needed) -->
+                <exclusion>
+                    <groupId>org.apache.avro</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Iceberg AWS for S3/MinIO storage -->

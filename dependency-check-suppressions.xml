@@ -1,16 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
-    <!--
-    This file contains suppressions for OWASP Dependency Check false positives.
-    
-    Example suppression:
+
+    <!-- False positive: iceberg-parquet 1.10.1 is NOT Apache Parquet 1.10.1.
+         The CPE cpe:2.3:a:apache:parquet:1.10.1 incorrectly matches the Iceberg module
+         version against the Apache Parquet project. Our actual Parquet version is 1.16.0. -->
     <suppress>
         <notes><![CDATA[
-        False positive: CVE-XXXX-YYYY does not affect our usage
+        CPE mismatch: iceberg-parquet version != Apache Parquet version.
+        iceberg-parquet is Iceberg's Parquet integration module, not Apache Parquet itself.
         ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.example/.*$</packageUrl>
-        <cve>CVE-XXXX-YYYY</cve>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.iceberg/iceberg-parquet@.*$</packageUrl>
+        <cpe>cpe:/a:apache:parquet</cpe>
     </suppress>
-    -->
+
+    <!-- False positive: parquet-avro 1.16.0 is NOT Apache Avro.
+         CVE-2023-37475 is an Apache Avro vulnerability, but the scanner incorrectly
+         matches parquet-avro (Parquet's Avro integration module) against the Avro project. -->
+    <suppress>
+        <notes><![CDATA[
+        CPE mismatch: parquet-avro is Parquet's Avro integration, not Apache Avro itself.
+        CVE-2023-37475 affects Apache Avro, not the parquet-avro module.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.parquet/parquet-avro@.*$</packageUrl>
+        <cpe>cpe:/a:avro_project:avro</cpe>
+    </suppress>
+
+    <!-- False positive: hive-storage-api POM embedded in orc-core jar.
+         orc-core is a transitive dependency of hadoop-common. We do not use Apache Hive.
+         The CVEs (CVE-2021-34538 etc.) affect Hive Server, not the storage API used by ORC. -->
+    <suppress>
+        <notes><![CDATA[
+        Transitive dependency: hive-storage-api is embedded in orc-core.
+        We do not use Hive; these CVEs affect Hive Server, not the storage API.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.hive/hive-storage-api@.*$</packageUrl>
+        <cpe>cpe:/a:apache:hive</cpe>
+    </suppress>
+
 </suppressions>
 
