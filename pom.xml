@@ -24,7 +24,7 @@
         <arrow.version>18.3.0</arrow.version>
         <hadoop.version>3.4.2</hadoop.version>
         <!-- AWS SDK -->
-        <aws.sdk.version>2.41.19</aws.sdk.version>
+        <aws.sdk.version>2.41.24</aws.sdk.version>
         <!-- Netty (override transitive for security) -->
         <netty.version>4.2.9.Final</netty.version>
         <!-- HTTP and JSON -->
