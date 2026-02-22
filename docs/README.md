@@ -18,6 +18,11 @@ This directory contains detailed documentation for the CRYOLITE project.
 
 ### Data Operations
 - [TableWriter](api/data/TableWriter.md) - Low-level data write operations
+- [TableReader](api/data/TableReader.md) - Low-level vectorized data read operations
+
+### Arrow Integration
+- [SchemaConverter](api/arrow/SchemaConverter.md) - Iceberg → Arrow schema conversion
+- [RecordConverter](api/arrow/RecordConverter.md) - Arrow batch → GenericRecord conversion (FieldAccessor pattern)
 
 ### Testing Infrastructure
 - [AbstractIntegrationTest](testing/AbstractIntegrationTest.md) - Base class for integration tests
@@ -40,7 +45,7 @@ CRYOLITE is an embedded Apache Iceberg table/query engine with the following key
 - **Apache Iceberg 1.10.1** - Table format
 - **Apache Polaris 1.3.0** - REST Catalog
 - **Apache Calcite 1.41.0** - SQL parser and optimizer (planned)
-- **Apache Arrow 18.3.0** - Vectorized execution (planned)
+- **Apache Arrow 18.3.0** - Vectorized execution (active)
 - **AWS SDK 2.41.19** - S3-compatible storage access
 - **MinIO** - S3-compatible object storage (development)
 

@@ -199,7 +199,17 @@ For detailed documentation, see the [docs/](docs/) directory.
 - ✅ 49 integration tests with 85%+ coverage
 - ✅ All tests verify both Iceberg metadata and physical files
 
-### Current: M4 – Low-Level Read: Scan + Arrow Result
+### ✅ M4 – Low-Level Read: Scan + Arrow Result (Completed)
+
+- ✅ `SchemaConverter` - Iceberg → Arrow schema conversion (14 primitive types)
+- ✅ `RecordConverter` - Arrow batch → GenericRecord with FieldAccessor caching pattern
+- ✅ `TableReader` - Dual API: `readBatches()` (Arrow) + `readRecords()` (convenience)
+- ✅ True streaming: batches read lazily, records created one at a time per `next()`
+- ✅ Zero-copy batch wrapping via `ColumnarBatch::createVectorSchemaRootFromVectors`
+- ✅ 94 integration tests with 85%+ coverage
+- ✅ Full write → read-back cycle verified (non-partitioned, partitioned, null values)
+
+### Current: M5 – High-Level SQL: DDL CREATE TABLE
 
 Coming soon...
 

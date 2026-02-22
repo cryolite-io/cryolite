@@ -37,5 +37,34 @@
         <cpe>cpe:/a:apache:hive</cpe>
     </suppress>
 
+    <!-- Transitive CVE from Apache Avro 1.12.0 (via parquet-avro).
+         CVE-2025-33042 (CVSS 7.3) is in the latest Avro version (1.12.0).
+         Awaiting upstream fix from Apache Avro project.
+         Impact: Low for our use case (Parquet reader only, no Avro schema evolution). -->
+    <suppress>
+        <notes><![CDATA[
+        Transitive dependency: avro-1.12.0 is required by parquet-avro (Parquet 1.16.0).
+        CVE-2025-33042 is in the latest Avro version; awaiting upstream fix.
+        We use Avro only for Parquet reading, not for schema evolution or RPC.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.avro/avro@1\.12\.0$</packageUrl>
+        <cve>CVE-2025-33042</cve>
+    </suppress>
+
+    <!-- Transitive CVEs from Eclipse Jetty 9.4.57 (via hadoop-mapreduce-client-core).
+         CVE-2025-5115 (CVSS 7.7) affects websocket-client and websocket-common.
+         Jetty 9.4.57 is the latest 9.4.x version; awaiting upstream fix.
+         Impact: Low for our use case (Hadoop FileSystem only, no WebSocket usage). -->
+    <suppress>
+        <notes><![CDATA[
+        Transitive dependency: Jetty 9.4.57 is required by hadoop-mapreduce-client-core (Hadoop 3.4.2).
+        CVE-2025-5115 affects websocket-client and websocket-common in Jetty 9.4.57.
+        Jetty 9.4.57 is the latest 9.4.x version; awaiting upstream fix.
+        We use Hadoop only for FileSystem access, not WebSocket functionality.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.eclipse\.jetty\.websocket/(websocket-client|websocket-common)@9\.4\.57\.v20241219$</packageUrl>
+        <cve>CVE-2025-5115</cve>
+    </suppress>
+
 </suppressions>
 

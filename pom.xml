@@ -108,6 +108,13 @@
             <version>${iceberg.version}</version>
         </dependency>
 
+        <!-- Iceberg Arrow for vectorized batch reading (Parquet → Arrow) -->
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-arrow</artifactId>
+            <version>${iceberg.version}</version>
+        </dependency>
+
         <!-- Hadoop (required by Parquet writer for org.apache.hadoop.conf.Configuration).
              We only need the Configuration class, so we aggressively exclude transitive
              dependencies to minimize the dependency footprint and avoid CVE issues. -->
@@ -156,6 +163,44 @@
                 <!-- Exclude Avro (pulled in separately by Iceberg if needed) -->
                 <exclusion>
                     <groupId>org.apache.avro</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Hadoop MapReduce Client Core (required by Parquet's ParquetReadOptions
+             for vectorized Arrow reading). Aggressively exclude transitive deps. -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-core</artifactId>
+            <version>${hadoop.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>ch.qos.reload4j</groupId>
+                    <artifactId>reload4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.eclipse.jetty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.sun.jersey</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet.jsp</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
@@ -305,6 +350,15 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
+                <configuration>
+                    <!-- Required for Apache Arrow on Java 9+: Arrow's unsafe memory access
+                         needs to open java.nio internals. Without this, MemoryUtil fails
+                         to initialize at runtime with a cryptic NoClassDefFoundError. -->
+                    <argLine>
+                        ${argLine}
+                        --add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED
+                    </argLine>
+                </configuration>
             </plugin>
 
             <!-- OWASP Dependency Check -->
