@@ -18,27 +18,32 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- SonarCloud -->
+        <sonar.projectKey>cryolite-io_cryolite</sonar.projectKey>
+        <sonar.organization>cryolite-io</sonar.organization>
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <!-- Core dependencies aligned with Iceberg 1.10.1 -->
         <iceberg.version>1.10.1</iceberg.version>
         <calcite.version>1.41.0</calcite.version>
         <arrow.version>18.3.0</arrow.version>
         <hadoop.version>3.4.2</hadoop.version>
         <!-- AWS SDK -->
-        <aws.sdk.version>2.41.19</aws.sdk.version>
+        <aws.sdk.version>2.41.24</aws.sdk.version>
         <!-- Netty (override transitive for security) -->
-        <netty.version>4.2.9.Final</netty.version>
+        <netty.version>4.2.10.Final</netty.version>
         <!-- HTTP and JSON -->
         <httpclient5.version>5.6</httpclient5.version>
         <jackson.version>2.18.4</jackson.version>
         <!-- Test dependencies -->
-        <junit.version>6.0.2</junit.version>
+        <junit.version>6.0.3</junit.version>
         <mockito.version>5.21.0</mockito.version>
         <testcontainers.version>1.21.4</testcontainers.version>
         <!-- Maven plugins -->
-        <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
+        <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.5.5</maven-surefire-plugin.version>
         <spotless-maven-plugin.version>3.2.1</spotless-maven-plugin.version>
-        <google-java-format.version>1.21.0</google-java-format.version>
+        <google-java-format.version>1.27.0</google-java-format.version>
         <sonar-maven-plugin.version>5.5.0.6356</sonar-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
         <dependency-check-maven.version>12.2.0</dependency-check-maven.version>
@@ -90,9 +95,12 @@
             <artifactId>arrow-vector</artifactId>
             <version>${arrow.version}</version>
         </dependency>
+        <!-- arrow-memory-unsafe avoids the Netty version conflict:
+             arrow-memory-netty requires Netty 4.1.x internals that were
+             removed in 4.2.x (which we use for security reasons). -->
         <dependency>
             <groupId>org.apache.arrow</groupId>
-            <artifactId>arrow-memory-netty</artifactId>
+            <artifactId>arrow-memory-unsafe</artifactId>
             <version>${arrow.version}</version>
         </dependency>
 
@@ -113,6 +121,14 @@
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-arrow</artifactId>
             <version>${iceberg.version}</version>
+            <exclusions>
+                <!-- Exclude arrow-memory-netty pulled in by iceberg-arrow 1.10.1 (15.0.2, CVE-2024-52338).
+                     We use arrow-memory-unsafe instead, which avoids Netty entirely. -->
+                <exclusion>
+                    <groupId>org.apache.arrow</groupId>
+                    <artifactId>arrow-memory-netty</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Hadoop (required by Parquet writer for org.apache.hadoop.conf.Configuration).
@@ -356,7 +372,8 @@
                          to initialize at runtime with a cryptic NoClassDefFoundError. -->
                     <argLine>
                         ${argLine}
-                        --add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED
+                        --add-opens=java.base/java.nio=ALL-UNNAMED
+                        -Darrow.allocation.manager.type=Unsafe
                     </argLine>
                 </configuration>
             </plugin>

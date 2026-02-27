@@ -1,4 +1,4 @@
-.PHONY: help format test coverage quality dependency-check verify verify-with-quality docker-up docker-down docker-logs clean
+.PHONY: help format test coverage quality dependency-check nvd-update verify verify-with-quality docker-up docker-down docker-logs clean
 
 # Load environment variables from .env file if it exists
 # The '-' prefix suppresses errors if the file doesn't exist
@@ -16,6 +16,7 @@ help:
 	@echo "  make coverage            - Check test coverage (85% minimum)"
 	@echo "  make quality             - Run SonarCloud analysis"
 	@echo "  make dependency-check    - Check dependencies for vulnerabilities (CVSS >= 7.0)"
+	@echo "  make nvd-update          - Download/update NVD vulnerability database"
 	@echo ""
 	@echo "Verification:"
 	@echo "  make verify              - Run all checks (format + test + coverage + dependency-check)"
@@ -65,17 +66,17 @@ quality:
 		-Dsonar.qualitygate.wait=true
 	@echo "✅ SonarCloud analysis passed"
 
+# Download/update NVD vulnerability database
+nvd-update:
+	@echo "Downloading NVD vulnerability database..."
+	mvn org.owasp:dependency-check-maven:update-only -DnvdApiKey=$(NVD_API_KEY)
+	@echo "NVD database updated"
+
 # Check dependencies for vulnerabilities
 dependency-check:
-	@echo "🔍 Checking dependencies for vulnerabilities..."
-	@if [ -n "$(NVD_API_KEY)" ]; then \
-		echo "   Using NVD API Key for faster updates..."; \
-		mvn org.owasp:dependency-check-maven:check -DnvdApiKey=$(NVD_API_KEY) -q; \
-	else \
-		echo "   (Tip: Set NVD_API_KEY in .env for faster updates)"; \
-		mvn org.owasp:dependency-check-maven:check -q; \
-	fi
-	@echo "✅ Dependency check passed"
+	@echo "Checking dependencies for vulnerabilities..."
+	mvn org.owasp:dependency-check-maven:check -DnvdApiKey=$(NVD_API_KEY) -q
+	@echo "Dependency check passed"
 
 # Verify all checks (format + test + coverage + dependency-check)
 verify: format test coverage dependency-check
