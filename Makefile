@@ -1,8 +1,26 @@
 .PHONY: help format test coverage quality dependency-check nvd-update verify verify-with-quality docker-up docker-down docker-logs clean
 
-# Load environment variables from .env file if it exists
-# The '-' prefix suppresses errors if the file doesn't exist
--include .env
+# Detect OS
+ifeq ($(OS),Windows_NT)
+    DETECTED_OS := Windows
+else
+    DETECTED_OS := Unix
+endif
+
+# Load environment variables from .env (cross-platform: Linux + Windows)
+# On Unix:    -include works natively (LF line endings guaranteed)
+# On Windows: PowerShell parses and strips comments + CRLF line endings
+# Both export all parsed variables to child processes (e.g. mvn)
+ifeq ($(DETECTED_OS),Windows)
+    ifneq (,$(wildcard .env))
+        $(foreach line,\
+            $(shell powershell -NoProfile -Command \
+                "Get-Content .env | Where-Object { $$_ -notmatch '^#' -and $$_ -match '=' } | ForEach-Object { $$_ -replace \"`r\",''; }"),\
+            $(eval $(line)))
+    endif
+else
+    -include .env
+endif
 export
 
 # Default target
@@ -49,21 +67,11 @@ coverage: test
 	@echo "✅ Coverage check passed (85%+ minimum)"
 
 # Run SonarCloud analysis
+# Uses mvn sonar:sonar (cross-platform, auto-detects sources/binaries/test-reports)
+# SONAR_TOKEN must be set in .env
 quality:
 	@echo "📊 Running SonarCloud analysis..."
-	@if [ -z "$(SONAR_TOKEN)" ]; then \
-		echo "❌ Error: SONAR_TOKEN not set in .env"; \
-		exit 1; \
-	fi
-	sonar-scanner \
-		-Dsonar.projectKey=cryolite-io_cryolite \
-		-Dsonar.organization=cryolite-io \
-		-Dsonar.sources=src/main \
-		-Dsonar.tests=src/test \
-		-Dsonar.java.binaries=target/classes \
-		-Dsonar.java.test.binaries=target/test-classes \
-		-Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-		-Dsonar.qualitygate.wait=true
+	mvn sonar:sonar -Dsonar.qualitygate.wait=true -q
 	@echo "✅ SonarCloud analysis passed"
 
 # Download/update NVD vulnerability database
