@@ -16,7 +16,7 @@ An embedded, lightweight Apache Iceberg table and query engine for Java applicat
 
 ### Prerequisites
 
-- Java 21+
+- Java 25+
 - Maven 3.9+
 - Docker & Docker Compose (for Polaris + MinIO)
 
@@ -136,82 +136,34 @@ make verify
 
 ```
 cryolite/
-├── src/main/java/io/cryolite/     # Main source code
-├── src/test/java/io/cryolite/     # Unit tests (85%+ coverage)
-├── docs/                           # Detailed documentation
-├── pom.xml                         # Maven configuration
-├── Makefile                        # Centralized build commands
-├── docker-compose.yml              # Docker services (Polaris + MinIO + PostgreSQL)
-├── .env                            # Environment variables (secrets, not committed)
-├── .env.example                    # Example configuration template
-├── scripts/hooks/                  # Git hook templates
-├── .github/dependabot.yml          # Automated dependency updates
-├── LICENSE                         # Apache License 2.0
-├── README.md                       # This file
-├── CONTRIBUTING.md                 # Contribution guidelines
-└── .gitignore                      # Git ignore rules
+├── src/main/java/io/cryolite/          # Main source code
+│   ├── CryoliteEngine.java             # Main entry point (create/close/SQL session)
+│   ├── CryoliteConfig.java             # Immutable configuration (Builder pattern)
+│   ├── arrow/                          # Arrow integration (schema/record conversion)
+│   ├── catalog/                        # Catalog management (Polaris REST)
+│   ├── data/                           # Data I/O (TableWriter, TableReader)
+│   └── sql/                            # SQL layer (Calcite parser, DDL, DML)
+│       ├── ddl/                        # CREATE TABLE interpreter
+│       ├── dml/                        # INSERT INTO interpreter
+│       ├── type/                       # Type mapping (Calcite ↔ Iceberg)
+│       └── util/                       # SQL utilities (identifier resolution)
+├── src/test/java/io/cryolite/          # Tests (144 tests, 85%+ coverage)
+├── docs/                               # Detailed documentation
+├── pom.xml                             # Maven configuration
+├── Makefile                            # Centralized build commands
+├── docker-compose.yml                  # Docker services (Polaris + MinIO + PostgreSQL)
+├── MILESTONES.md                       # Development milestones and roadmap
+├── CONTRIBUTING.md                     # Contribution guidelines
+└── .env.example                        # Environment variable template
 ```
 
 For detailed documentation, see the [docs/](docs/) directory.
 
 ## Milestones
 
-### ✅ M0 – Project Foundation (Completed)
+See [MILESTONES.md](MILESTONES.md) for the full roadmap.
 
-- ✅ Maven build with dependencies
-- ✅ Docker Compose (Polaris + MinIO)
-- ✅ Quality gates (Spotless, JUnit, SonarCloud)
-- ✅ Git hooks (pre-commit, commit-msg)
-- ✅ Conventional Commits validation
-- ✅ Apache License 2.0
-- ✅ Contributing guidelines
-
-### ✅ M1 – Embedded Skeleton + Configuration (Completed)
-
-- ✅ `CryoliteEngine` - Main entry point with lifecycle (create/close)
-- ✅ `CryoliteConfig` - Immutable configuration with Builder pattern
-- ✅ `CatalogManager` - Polaris REST Catalog connection
-- ✅ Health checks for Polaris connectivity
-- ✅ Full integration with Docker Compose services
-
-### ✅ M2 – Low-Level DDL: Namespace + Table Create (Completed)
-
-- ✅ Simplified architecture: Iceberg Catalog is the low-level API
-- ✅ Removed unnecessary abstractions (StorageManager, NamespaceManager, TableManager)
-- ✅ Polaris handles credential vending for storage access
-- ✅ Namespace operations via `SupportsNamespaces` interface
-- ✅ Table operations via `Catalog` interface
-- ✅ Configured Polaris with `DROP_WITH_PURGE_ENABLED`
-- ✅ Created Makefile for centralized build commands
-- ✅ Added OWASP Dependency Check (CVSS ≥ 7.0)
-- ✅ Added Dependabot for automated dependency updates
-- ✅ 43 unit tests with 85%+ coverage
-
-### ✅ M3 – Low-Level DML: Write Path (Completed)
-
-- ✅ `TableWriter` class for writing data to Iceberg tables
-- ✅ Support for both partitioned and unpartitioned tables
-- ✅ Automatic partition routing with `PartitionedFanoutWriter`
-- ✅ Snapshot creation and commit
-- ✅ Parquet file format
-- ✅ S3-compatible storage verification in tests
-- ✅ `S3StorageTestHelper` for end-to-end storage verification
-- ✅ 49 integration tests with 85%+ coverage
-- ✅ All tests verify both Iceberg metadata and physical files
-
-### ✅ M4 – Low-Level Read: Scan + Arrow Result (Completed)
-
-- ✅ `SchemaConverter` - Iceberg → Arrow schema conversion (14 primitive types)
-- ✅ `RecordConverter` - Arrow batch → GenericRecord with FieldAccessor caching pattern
-- ✅ `TableReader` - Dual API: `readBatches()` (Arrow) + `readRecords()` (convenience)
-- ✅ True streaming: batches read lazily, records created one at a time per `next()`
-- ✅ Zero-copy batch wrapping via `ColumnarBatch::createVectorSchemaRootFromVectors`
-- ✅ 94 integration tests with 85%+ coverage
-- ✅ Full write → read-back cycle verified (non-partitioned, partitioned, null values)
-
-### Current: M5 – High-Level SQL: DDL CREATE TABLE
-
-Coming soon...
+**Current status:** M0–M6 completed (Project Foundation → SQL INSERT). Next: M7 (SQL SELECT).
 
 ## Contributing
 
