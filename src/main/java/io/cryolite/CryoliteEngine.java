@@ -1,13 +1,16 @@
 package io.cryolite;
 
 import io.cryolite.catalog.CatalogManager;
+import io.cryolite.data.TableReader;
 import io.cryolite.data.TableWriter;
 import io.cryolite.sql.SqlSession;
 import java.io.IOException;
 import java.util.List;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.io.CloseableIterable;
 
 /**
  * CRYOLITE Runs Your Open Lightweight Iceberg Table Engine.
@@ -121,6 +124,31 @@ public class CryoliteEngine {
         writer.write(record);
       }
       writer.commit();
+    }
+  }
+
+  /**
+   * Scans the specified table and returns its data as Arrow columnar batches.
+   *
+   * <p>This is the engine-level read operation used by the SQL layer (query) and available directly
+   * via the low-level API. Internally it delegates to {@link TableReader}.
+   *
+   * <p><b>Memory Lifecycle:</b> Each {@link VectorSchemaRoot} batch is valid only during iteration.
+   * Callers must process each batch within the iteration loop and close the returned iterable when
+   * done.
+   *
+   * @param tableId the table to scan
+   * @return a closeable iterable of Arrow batches; empty if table has no snapshots
+   * @throws IllegalStateException if the engine is closed
+   * @throws IOException if reading fails
+   */
+  public CloseableIterable<VectorSchemaRoot> scan(TableIdentifier tableId) throws IOException {
+    if (closed) {
+      throw new IllegalStateException("Engine is closed");
+    }
+    Table table = catalogManager.getCatalog().loadTable(tableId);
+    try (TableReader reader = new TableReader(table)) {
+      return reader.readBatches();
     }
   }
 

@@ -42,18 +42,50 @@ class SqlSessionTest {
   }
 
   @Test
-  void executeUnsupportedStatementTypeThrowsSqlExecutionException() {
-    // SELECT is valid SQL but not yet supported (M7+).
+  void executeSelectViaExecuteThrowsWithHelpfulMessage() {
+    // SELECT must use query(), not execute().
     try (SqlSession session = session()) {
       SqlExecutionException ex =
           assertThrows(
               SqlExecutionException.class, () -> session.execute("SELECT 1 FROM my_table"));
       assertTrue(
+          ex.getMessage().contains("query()"),
+          "Error message should suggest query(), was: " + ex.getMessage());
+    }
+  }
+
+  @Test
+  void executeUnsupportedStatementTypeThrowsSqlExecutionException() {
+    // DELETE is valid SQL but not supported.
+    try (SqlSession session = session()) {
+      SqlExecutionException ex =
+          assertThrows(
+              SqlExecutionException.class,
+              () -> session.execute("DELETE FROM my_ns.my_table WHERE id = 1"));
+      assertTrue(
           ex.getMessage().contains("Unsupported SQL statement type"),
           "Error message should mention unsupported type, was: " + ex.getMessage());
+    }
+  }
+
+  @Test
+  void queryNullSqlThrowsSqlExecutionException() {
+    try (SqlSession session = session()) {
+      SqlExecutionException ex =
+          assertThrows(SqlExecutionException.class, () -> session.query(null));
+      assertTrue(ex.getMessage().contains("null or blank"));
+    }
+  }
+
+  @Test
+  void queryNonSelectThrowsSqlExecutionException() {
+    try (SqlSession session = session()) {
+      SqlExecutionException ex =
+          assertThrows(
+              SqlExecutionException.class, () -> session.query("CREATE TABLE ns.t (id BIGINT)"));
       assertTrue(
-          ex.getMessage().contains("CREATE TABLE") || ex.getMessage().contains("INSERT INTO"),
-          "Error message should list supported statement types, was: " + ex.getMessage());
+          ex.getMessage().contains("SELECT"),
+          "Error message should mention SELECT, was: " + ex.getMessage());
     }
   }
 
