@@ -2,6 +2,7 @@ package io.cryolite.sql.ddl;
 
 import io.cryolite.sql.SqlExecutionException;
 import io.cryolite.sql.type.CalciteTypeMapper;
+import io.cryolite.sql.util.SqlIdentifiers;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -60,7 +61,7 @@ public class SqlDdlInterpreter {
    *     empty or contains unsupported constructs, or the catalog operation fails
    */
   public void execute(SqlCreateTable createTable) {
-    TableIdentifier tableId = resolveTableIdentifier(createTable);
+    TableIdentifier tableId = SqlIdentifiers.resolveTableIdentifier(createTable.name);
     Schema schema = buildSchema(createTable);
 
     ensureNamespaceExists(tableId.namespace());
@@ -73,21 +74,6 @@ public class SqlDdlInterpreter {
       }
       // IF NOT EXISTS: silently ignore duplicate
     }
-  }
-
-  private TableIdentifier resolveTableIdentifier(SqlCreateTable createTable) {
-    List<String> nameParts = createTable.name.names;
-    if (nameParts.size() < 2) {
-      throw new SqlExecutionException(
-          "Table name must be fully qualified with a namespace, e.g. 'my_namespace.my_table'. "
-              + "Got: '"
-              + createTable.name
-              + "'");
-    }
-    // Support two-level names: namespace.table
-    String namespaceName = nameParts.get(nameParts.size() - 2);
-    String tableName = nameParts.get(nameParts.size() - 1);
-    return TableIdentifier.of(Namespace.of(namespaceName), tableName);
   }
 
   private Schema buildSchema(SqlCreateTable createTable) {

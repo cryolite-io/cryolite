@@ -1,13 +1,15 @@
 package io.cryolite.sql;
 
+import io.cryolite.CryoliteEngine;
 import io.cryolite.sql.ddl.SqlDdlInterpreter;
+import io.cryolite.sql.dml.SqlDmlInterpreter;
 import org.apache.calcite.avatica.util.Casing;
+import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.ddl.SqlCreateTable;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.ddl.SqlDdlParserImpl;
-import org.apache.iceberg.catalog.Catalog;
 
 /**
  * Entry point for executing SQL statements against CRYOLITE.
@@ -19,10 +21,11 @@ import org.apache.iceberg.catalog.Catalog;
  * <p>Create a session via {@code CryoliteEngine.createSqlSession()} and execute SQL statements with
  * {@link #execute(String)}.
  *
- * <p>Supported SQL in Milestone 5:
+ * <p>Supported SQL:
  *
  * <ul>
- *   <li>{@code CREATE TABLE [IF NOT EXISTS] namespace.table (columns...)}
+ *   <li>{@code CREATE TABLE [IF NOT EXISTS] namespace.table (columns...)} (M5)
+ *   <li>{@code INSERT INTO namespace.table [(cols)] VALUES (vals) [, (vals)]} (M6)
  * </ul>
  *
  * <p>Example usage:
@@ -45,23 +48,25 @@ import org.apache.iceberg.catalog.Catalog;
 public class SqlSession implements AutoCloseable {
 
   private final SqlDdlInterpreter ddlInterpreter;
+  private final SqlDmlInterpreter dmlInterpreter;
 
   /**
-   * Creates a new SqlSession backed by the given Iceberg catalog.
+   * Creates a new SqlSession backed by the given engine.
    *
    * <p>Prefer using {@code CryoliteEngine.createSqlSession()} rather than calling this constructor
-   * directly, as the engine ensures the session is created with a valid, open catalog.
+   * directly, as the engine ensures the session is created in a valid, open state.
    *
-   * @param catalog the Iceberg catalog used for DDL execution
+   * @param engine the CRYOLITE engine used for DDL and DML execution
    */
-  public SqlSession(Catalog catalog) {
-    this.ddlInterpreter = new SqlDdlInterpreter(catalog);
+  public SqlSession(CryoliteEngine engine) {
+    this.ddlInterpreter = new SqlDdlInterpreter(engine.getCatalog());
+    this.dmlInterpreter = new SqlDmlInterpreter(engine);
   }
 
   /**
    * Parses and executes a SQL statement.
    *
-   * <p>Supported statement types in M5: {@code CREATE TABLE}.
+   * <p>Supported statement types: {@code CREATE TABLE} (DDL) and {@code INSERT INTO} (DML).
    *
    * @param sql the SQL string to execute
    * @throws SqlExecutionException if the SQL cannot be parsed, is unsupported, or execution fails
@@ -98,11 +103,15 @@ public class SqlSession implements AutoCloseable {
       ddlInterpreter.execute(createTable);
       return;
     }
+    if (node instanceof SqlInsert insert) {
+      dmlInterpreter.execute(insert);
+      return;
+    }
     throw new SqlExecutionException(
         "Unsupported SQL statement type: '"
             + node.getKind()
             + "'. "
-            + "Only CREATE TABLE is supported in this version. Statement: "
+            + "Supported statements: CREATE TABLE, INSERT INTO. Statement: "
             + sql);
   }
 
@@ -114,6 +123,6 @@ public class SqlSession implements AutoCloseable {
    */
   @Override
   public void close() {
-    // No resources to release in M5. This method is here for future-proofing.
+    // No resources to release in this version. Reserved for future connection/transaction mgmt.
   }
 }

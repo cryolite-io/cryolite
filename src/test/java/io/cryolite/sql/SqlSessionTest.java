@@ -3,6 +3,7 @@ package io.cryolite.sql;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.cryolite.CryoliteEngine;
 import org.apache.iceberg.catalog.Catalog;
 import org.junit.jupiter.api.Test;
 
@@ -16,8 +17,10 @@ import org.junit.jupiter.api.Test;
 class SqlSessionTest {
 
   private SqlSession session() {
-    // A mock catalog suffices; these tests do not reach catalog execution.
-    return new SqlSession(mock(Catalog.class));
+    // Mock the engine; these tests verify parsing/dispatch only and never reach catalog execution.
+    CryoliteEngine engine = mock(CryoliteEngine.class);
+    when(engine.getCatalog()).thenReturn(mock(Catalog.class));
+    return new SqlSession(engine);
   }
 
   @Test
@@ -40,7 +43,7 @@ class SqlSessionTest {
 
   @Test
   void executeUnsupportedStatementTypeThrowsSqlExecutionException() {
-    // SELECT is valid SQL but not yet supported in M5.
+    // SELECT is valid SQL but not yet supported (M7+).
     try (SqlSession session = session()) {
       SqlExecutionException ex =
           assertThrows(
@@ -48,6 +51,9 @@ class SqlSessionTest {
       assertTrue(
           ex.getMessage().contains("Unsupported SQL statement type"),
           "Error message should mention unsupported type, was: " + ex.getMessage());
+      assertTrue(
+          ex.getMessage().contains("CREATE TABLE") || ex.getMessage().contains("INSERT INTO"),
+          "Error message should list supported statement types, was: " + ex.getMessage());
     }
   }
 

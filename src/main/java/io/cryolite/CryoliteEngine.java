@@ -1,7 +1,13 @@
 package io.cryolite;
 
 import io.cryolite.catalog.CatalogManager;
+import io.cryolite.data.TableWriter;
 import io.cryolite.sql.SqlSession;
+import java.io.IOException;
+import java.util.List;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
 
 /**
  * CRYOLITE Runs Your Open Lightweight Iceberg Table Engine.
@@ -95,14 +101,39 @@ public class CryoliteEngine {
   }
 
   /**
+   * Appends a list of records to the specified table as a single atomic Iceberg snapshot.
+   *
+   * <p>This is the engine-level write operation used by the SQL layer (DML) and available directly
+   * via the low-level API. Internally it delegates to {@link TableWriter}.
+   *
+   * @param tableId the target table
+   * @param records the records to append; must conform to the table's schema
+   * @throws IllegalStateException if the engine is closed
+   * @throws IOException if writing or committing the snapshot fails
+   */
+  public void append(TableIdentifier tableId, List<Record> records) throws IOException {
+    if (closed) {
+      throw new IllegalStateException("Engine is closed");
+    }
+    Table table = catalogManager.getCatalog().loadTable(tableId);
+    try (TableWriter writer = new TableWriter(table)) {
+      for (Record record : records) {
+        writer.write(record);
+      }
+      writer.commit();
+    }
+  }
+
+  /**
    * Creates a new {@link SqlSession} for executing SQL statements.
    *
-   * <p>The session uses the engine's catalog for all DDL and DML operations. Use a
-   * try-with-resources block to ensure the session is properly closed:
+   * <p>The session uses this engine for all DDL and DML operations. Use a try-with-resources block
+   * to ensure the session is properly closed:
    *
    * <pre>{@code
    * try (SqlSession session = engine.createSqlSession()) {
    *   session.execute("CREATE TABLE my_ns.my_table (id BIGINT NOT NULL, name VARCHAR)");
+   *   session.execute("INSERT INTO my_ns.my_table VALUES (1, 'Alice')");
    * }
    * }</pre>
    *
@@ -113,7 +144,7 @@ public class CryoliteEngine {
     if (closed) {
       throw new IllegalStateException("Engine is closed");
     }
-    return new SqlSession(catalogManager.getCatalog());
+    return new SqlSession(this);
   }
 
   /**
