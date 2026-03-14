@@ -66,5 +66,18 @@
         <cve>CVE-2025-5115</cve>
     </suppress>
 
+    <!-- False positive: CVE-2026-25087 is a Use After Free in Apache Arrow C++ (IPC file reading).
+         The scanner matches cpe:2.3:a:apache:arrow:18.3.0 against the Java arrow-memory-core JAR,
+         but this CVE only affects the native C++ library, not the Java memory allocator.
+         We use Arrow Java (arrow-vector + arrow-memory-unsafe) for in-process vectorized execution. -->
+    <suppress>
+        <notes><![CDATA[
+        CVE-2026-25087 affects Apache Arrow C++ (IPC file reading, use-after-free).
+        arrow-memory-core is a Java library; the C++ vulnerability does not apply.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.arrow/arrow-.*@.*$</packageUrl>
+        <cve>CVE-2026-25087</cve>
+    </suppress>
+
 </suppressions>
 
