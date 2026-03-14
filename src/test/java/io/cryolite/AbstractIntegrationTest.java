@@ -10,7 +10,7 @@ import org.junit.jupiter.api.BeforeAll;
  * <p>Provides common setup (ensuring services are running) and helper methods for creating test
  * configurations and schemas.
  */
-abstract class AbstractIntegrationTest {
+public abstract class AbstractIntegrationTest {
 
   @BeforeAll
   static void ensureServicesRunning() throws Exception {

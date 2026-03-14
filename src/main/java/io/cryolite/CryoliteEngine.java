@@ -1,6 +1,7 @@
 package io.cryolite;
 
 import io.cryolite.catalog.CatalogManager;
+import io.cryolite.sql.SqlSession;
 
 /**
  * CRYOLITE Runs Your Open Lightweight Iceberg Table Engine.
@@ -91,6 +92,28 @@ public class CryoliteEngine {
    */
   public boolean isClosed() {
     return closed;
+  }
+
+  /**
+   * Creates a new {@link SqlSession} for executing SQL statements.
+   *
+   * <p>The session uses the engine's catalog for all DDL and DML operations. Use a
+   * try-with-resources block to ensure the session is properly closed:
+   *
+   * <pre>{@code
+   * try (SqlSession session = engine.createSqlSession()) {
+   *   session.execute("CREATE TABLE my_ns.my_table (id BIGINT NOT NULL, name VARCHAR)");
+   * }
+   * }</pre>
+   *
+   * @return a new SqlSession
+   * @throws IllegalStateException if the engine is closed
+   */
+  public SqlSession createSqlSession() {
+    if (closed) {
+      throw new IllegalStateException("Engine is closed");
+    }
+    return new SqlSession(catalogManager.getCatalog());
   }
 
   /**
