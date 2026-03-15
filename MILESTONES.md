@@ -66,13 +66,15 @@ This document tracks the development milestones for CRYOLITE. Each milestone del
 - Multi-row VALUES, explicit column lists, NULL handling
 - 144 tests with 85%+ coverage across all packages
 
-## Current: M7 – High-Level SQL: SELECT * (Read)
+## ✅ M7 – High-Level SQL: SELECT * (Read)
 
-Coming next.
+- `CryoliteEngine.scan()` – Engine-level read API (symmetric to `append()`)
+- `SqlQueryInterpreter` – interprets `SELECT * FROM ns.table`, delegates to `engine.scan()`
+- `SqlSession.query()` – new query method for SELECT statements, separated from `execute()` (DDL/DML)
+- Arrow streaming result via `VectorSchemaRoot` batches
+- 154 tests with 85%+ coverage across all packages
 
-## Planned
-
-### M8 – SQL WHERE: Comparisons + AND (Residual allowed)
+## Current: M8 – SQL WHERE: Comparisons + AND (Residual allowed)
 ### M9 – Pushdown: Projection + Filter AND → Iceberg
 ### M10 – Pushdown: Partition Pruning / Manifest Pruning
 ### M11 – Pushdown: Parquet Reader Filter

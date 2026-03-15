@@ -4,13 +4,17 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import io.cryolite.CryoliteEngine;
+import io.cryolite.filter.BatchPredicate;
 import io.cryolite.sql.SqlExecutionException;
 import io.cryolite.sql.SqlSession;
 import java.io.IOException;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -84,5 +88,51 @@ class SqlQueryInterpreterTest {
     }
 
     verify(engine).scan(TableIdentifier.of("test_ns", "test_table"));
+  }
+
+  @Test
+  void ioExceptionDuringFilteredScanIsWrappedInSqlExecutionException() throws Exception {
+    CryoliteEngine engine = mockEngine();
+    Table table = mock(Table.class);
+    Schema schema =
+        new Schema(
+            Types.NestedField.required(1, "id", Types.LongType.get()),
+            Types.NestedField.optional(2, "name", Types.StringType.get()));
+    when(table.schema()).thenReturn(schema);
+
+    Catalog catalog = engine.getCatalog();
+    when(catalog.tableExists(any(TableIdentifier.class))).thenReturn(true);
+    when(catalog.loadTable(any(TableIdentifier.class))).thenReturn(table);
+
+    when(engine.scan(any(TableIdentifier.class), any(BatchPredicate.class)))
+        .thenThrow(new IOException("storage offline"));
+
+    try (SqlSession session = new SqlSession(engine)) {
+      SqlExecutionException ex =
+          assertThrows(
+              SqlExecutionException.class,
+              () -> session.query("SELECT * FROM test_ns.test_table WHERE id = 1"));
+      assertTrue(
+          ex.getMessage().contains("Failed to scan table"),
+          "Error should mention scan failure, was: " + ex.getMessage());
+      assertInstanceOf(IOException.class, ex.getCause());
+    }
+  }
+
+  @Test
+  void selectWhereOnNonExistentTableThrowsSqlExecutionException() {
+    CryoliteEngine engine = mockEngine();
+    Catalog catalog = engine.getCatalog();
+    when(catalog.tableExists(any(TableIdentifier.class))).thenReturn(false);
+
+    try (SqlSession session = new SqlSession(engine)) {
+      SqlExecutionException ex =
+          assertThrows(
+              SqlExecutionException.class,
+              () -> session.query("SELECT * FROM test_ns.test_table WHERE id = 1"));
+      assertTrue(
+          ex.getMessage().contains("Table does not exist"),
+          "Error should mention table not found, was: " + ex.getMessage());
+    }
   }
 }

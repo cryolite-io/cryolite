@@ -111,6 +111,142 @@ class SqlSelectIntegrationTest extends AbstractIntegrationTest {
     }
   }
 
+  // --- WHERE clause tests (M8) ---
+
+  /** Verifies WHERE with equality filter on a BIGINT column. */
+  @Test
+  void selectWhereEqualsFiltersCorrectly() throws Exception {
+    CryoliteEngine engine = new CryoliteEngine(createTestConfig());
+    Catalog catalog = engine.getCatalog();
+    String ns = "sql_where_eq_" + uniqueSuffix();
+    TableIdentifier tableId = TableIdentifier.of(Namespace.of(ns), "people");
+
+    try (SqlSession session = engine.createSqlSession()) {
+      session.execute(
+          "CREATE TABLE " + ns + ".people (id BIGINT NOT NULL, name VARCHAR, age INTEGER)");
+      session.execute(
+          "INSERT INTO "
+              + ns
+              + ".people VALUES (1, 'Alice', 30), (2, 'Bob', 25), (3, 'Carol', 35)");
+
+      List<Long> ids = new ArrayList<>();
+      List<String> names = new ArrayList<>();
+      try (CloseableIterable<VectorSchemaRoot> batches =
+          session.query("SELECT * FROM " + ns + ".people WHERE id = 2")) {
+        for (VectorSchemaRoot batch : batches) {
+          BigIntVector idVec = (BigIntVector) batch.getVector("id");
+          VarCharVector nameVec = (VarCharVector) batch.getVector("name");
+          for (int i = 0; i < batch.getRowCount(); i++) {
+            ids.add(idVec.get(i));
+            names.add(new String(nameVec.get(i)));
+          }
+        }
+      }
+
+      assertEquals(List.of(2L), ids, "Only Bob should match id = 2");
+      assertEquals(List.of("Bob"), names);
+    } finally {
+      cleanup(catalog, tableId);
+      engine.close();
+    }
+  }
+
+  /** Verifies WHERE with greater-than filter. */
+  @Test
+  void selectWhereGreaterThanFiltersCorrectly() throws Exception {
+    CryoliteEngine engine = new CryoliteEngine(createTestConfig());
+    Catalog catalog = engine.getCatalog();
+    String ns = "sql_where_gt_" + uniqueSuffix();
+    TableIdentifier tableId = TableIdentifier.of(Namespace.of(ns), "people");
+
+    try (SqlSession session = engine.createSqlSession()) {
+      session.execute(
+          "CREATE TABLE " + ns + ".people (id BIGINT NOT NULL, name VARCHAR, age INTEGER)");
+      session.execute(
+          "INSERT INTO "
+              + ns
+              + ".people VALUES (1, 'Alice', 30), (2, 'Bob', 25), (3, 'Carol', 35)");
+
+      List<Long> ids = new ArrayList<>();
+      try (CloseableIterable<VectorSchemaRoot> batches =
+          session.query("SELECT * FROM " + ns + ".people WHERE id > 1")) {
+        for (VectorSchemaRoot batch : batches) {
+          BigIntVector idVec = (BigIntVector) batch.getVector("id");
+          for (int i = 0; i < batch.getRowCount(); i++) {
+            ids.add(idVec.get(i));
+          }
+        }
+      }
+
+      assertEquals(2, ids.size(), "Bob and Carol should match id > 1");
+      assertTrue(ids.containsAll(List.of(2L, 3L)));
+    } finally {
+      cleanup(catalog, tableId);
+      engine.close();
+    }
+  }
+
+  /** Verifies WHERE with AND combining two conditions. */
+  @Test
+  void selectWhereAndCombinesConditions() throws Exception {
+    CryoliteEngine engine = new CryoliteEngine(createTestConfig());
+    Catalog catalog = engine.getCatalog();
+    String ns = "sql_where_and_" + uniqueSuffix();
+    TableIdentifier tableId = TableIdentifier.of(Namespace.of(ns), "people");
+
+    try (SqlSession session = engine.createSqlSession()) {
+      session.execute(
+          "CREATE TABLE " + ns + ".people (id BIGINT NOT NULL, name VARCHAR, age INTEGER)");
+      session.execute(
+          "INSERT INTO "
+              + ns
+              + ".people VALUES (1, 'Alice', 30), (2, 'Bob', 25), (3, 'Carol', 35)");
+
+      List<String> names = new ArrayList<>();
+      try (CloseableIterable<VectorSchemaRoot> batches =
+          session.query("SELECT * FROM " + ns + ".people WHERE id >= 2 AND name = 'Carol'")) {
+        for (VectorSchemaRoot batch : batches) {
+          VarCharVector nameVec = (VarCharVector) batch.getVector("name");
+          for (int i = 0; i < batch.getRowCount(); i++) {
+            names.add(new String(nameVec.get(i)));
+          }
+        }
+      }
+
+      assertEquals(List.of("Carol"), names, "Only Carol matches id >= 2 AND name = 'Carol'");
+    } finally {
+      cleanup(catalog, tableId);
+      engine.close();
+    }
+  }
+
+  /** Verifies WHERE that matches no rows returns an empty result. */
+  @Test
+  void selectWhereNoMatchReturnsEmptyResult() throws Exception {
+    CryoliteEngine engine = new CryoliteEngine(createTestConfig());
+    Catalog catalog = engine.getCatalog();
+    String ns = "sql_where_empty_" + uniqueSuffix();
+    TableIdentifier tableId = TableIdentifier.of(Namespace.of(ns), "people");
+
+    try (SqlSession session = engine.createSqlSession()) {
+      session.execute("CREATE TABLE " + ns + ".people (id BIGINT NOT NULL, name VARCHAR)");
+      session.execute("INSERT INTO " + ns + ".people VALUES (1, 'Alice'), (2, 'Bob')");
+
+      int totalRows = 0;
+      try (CloseableIterable<VectorSchemaRoot> batches =
+          session.query("SELECT * FROM " + ns + ".people WHERE id = 999")) {
+        for (VectorSchemaRoot batch : batches) {
+          totalRows += batch.getRowCount();
+        }
+      }
+
+      assertEquals(0, totalRows, "No rows should match id = 999");
+    } finally {
+      cleanup(catalog, tableId);
+      engine.close();
+    }
+  }
+
   // --- helpers ---
 
   private void cleanup(Catalog catalog, TableIdentifier tableId) {

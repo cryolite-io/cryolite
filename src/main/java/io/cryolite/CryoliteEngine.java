@@ -2,7 +2,9 @@ package io.cryolite;
 
 import io.cryolite.catalog.CatalogManager;
 import io.cryolite.data.TableReader;
+import io.cryolite.data.TableScanner;
 import io.cryolite.data.TableWriter;
+import io.cryolite.filter.BatchPredicate;
 import io.cryolite.sql.SqlSession;
 import java.io.IOException;
 import java.util.List;
@@ -150,6 +152,32 @@ public class CryoliteEngine {
     try (TableReader reader = new TableReader(table)) {
       return reader.readBatches();
     }
+  }
+
+  /**
+   * Scans the specified table with a filter predicate and returns matching data as Arrow batches.
+   *
+   * <p>The predicate is applied as a residual filter on Arrow batches. In future milestones (M9+),
+   * the scanner will also convert predicates to Iceberg expressions for pushdown optimization.
+   *
+   * <p><b>Memory Lifecycle:</b> Each filtered batch is valid only until the next call to {@code
+   * next()} or until the iterable is closed. The scanner manages the allocator for filtered
+   * batches.
+   *
+   * @param tableId the table to scan
+   * @param predicate the filter predicate to apply
+   * @return a closeable iterable of filtered Arrow batches
+   * @throws IllegalStateException if the engine is closed
+   * @throws IOException if reading fails
+   */
+  public CloseableIterable<VectorSchemaRoot> scan(TableIdentifier tableId, BatchPredicate predicate)
+      throws IOException {
+    if (closed) {
+      throw new IllegalStateException("Engine is closed");
+    }
+    Table table = catalogManager.getCatalog().loadTable(tableId);
+    TableScanner scanner = new TableScanner(table);
+    return scanner.scan(predicate);
   }
 
   /**
