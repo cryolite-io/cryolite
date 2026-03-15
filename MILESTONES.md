@@ -74,8 +74,19 @@ This document tracks the development milestones for CRYOLITE. Each milestone del
 - Arrow streaming result via `VectorSchemaRoot` batches
 - 154 tests with 85%+ coverage across all packages
 
-## Current: M8 – SQL WHERE: Comparisons + AND (Residual allowed)
-### M9 – Pushdown: Projection + Filter AND → Iceberg
+## ✅ M8 – SQL WHERE: Comparisons + AND (Residual allowed)
+
+- `BatchPredicate` interface: `evaluate(VectorSchemaRoot) → BitSet` (selection vector)
+- `ComparisonPredicate` – column-wise evaluation (single-pass per column, cache-friendly)
+- `AndPredicate` – bulk `BitSet.and()` instead of per-row short-circuit
+- `ArrowBatchFilter` – two-phase: evaluate predicate → column-wise copy of matching rows
+- `SqlWhereConverter` – Calcite WHERE AST → `BatchPredicate` tree
+- `TableScanner` – orchestrates filtered scans with dedicated memory allocator
+- All six comparison operators (=, !=, <, <=, >, >=) and AND conjunctions
+- 208 tests with 85%+ coverage across all packages
+
+## Current: M9 – Pushdown: Projection + Filter AND → Iceberg
+
 ### M10 – Pushdown: Partition Pruning / Manifest Pruning
 ### M11 – Pushdown: Parquet Reader Filter
 ### M12 – SQL: OR / NOT
