@@ -33,7 +33,7 @@
         <!-- Netty (override transitive for security) -->
         <netty.version>4.2.10.Final</netty.version>
         <!-- HTTP and JSON -->
-        <httpclient5.version>5.6</httpclient5.version>
+        <httpclient5.version>5.6.1</httpclient5.version>
         <jackson.version>2.18.4</jackson.version>
         <!-- Test dependencies -->
         <junit.version>6.0.3</junit.version>
