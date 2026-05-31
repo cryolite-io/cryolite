@@ -29,12 +29,14 @@
         <arrow.version>18.3.0</arrow.version>
         <hadoop.version>3.4.2</hadoop.version>
         <!-- AWS SDK -->
-        <aws.sdk.version>2.41.24</aws.sdk.version>
+        <aws.sdk.version>2.44.10</aws.sdk.version>
         <!-- Netty (override transitive for security) -->
-        <netty.version>4.2.10.Final</netty.version>
+        <netty.version>4.2.13.Final</netty.version>
         <!-- HTTP and JSON -->
-        <httpclient5.version>5.6</httpclient5.version>
+        <httpclient5.version>5.6.1</httpclient5.version>
         <jackson.version>2.18.4</jackson.version>
+        <!-- Aircompressor (override Iceberg's transitive 0.27 to fix CVE-2025-67721) -->
+        <aircompressor.version>2.0.3</aircompressor.version>
         <!-- Test dependencies -->
         <junit.version>6.0.3</junit.version>
         <mockito.version>5.21.0</mockito.version>
@@ -52,7 +54,7 @@
     <!-- Dependency Management to override transitive versions for security -->
     <dependencyManagement>
         <dependencies>
-            <!-- Netty BOM to fix CVE-2025-24970, CVE-2025-55163 -->
+            <!-- Netty BOM to fix CVE-2026-42581/82/83/84/85/86/87, CVE-2026-44248, CVE-2026-33870/71 -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
@@ -60,11 +62,17 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- HttpClient5 to fix CVE-2025-27820 -->
+            <!-- HttpClient5 to fix CVE-2026-40542 -->
             <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>
                 <artifactId>httpclient5</artifactId>
                 <version>${httpclient5.version}</version>
+            </dependency>
+            <!-- Aircompressor to fix CVE-2025-67721 (Iceberg pulls 0.27 transitively) -->
+            <dependency>
+                <groupId>io.airlift</groupId>
+                <artifactId>aircompressor</artifactId>
+                <version>${aircompressor.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -206,6 +214,12 @@
                 </exclusion>
                 <exclusion>
                     <groupId>org.eclipse.jetty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <!-- Exclude Jetty WebSocket (CVE-2026-2332, CVE-2026-5795 in 9.4.57) pulled in
+                     transitively via hadoop-yarn-client; not used in embedded mode. -->
+                <exclusion>
+                    <groupId>org.eclipse.jetty.websocket</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
