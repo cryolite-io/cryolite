@@ -3,6 +3,8 @@ package io.cryolite.filter;
 import java.util.function.DoublePredicate;
 import java.util.function.LongPredicate;
 import java.util.function.Predicate;
+import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.expressions.Expressions;
 
 /**
  * Standard SQL comparison operators for use in {@link ComparisonPredicate}.
@@ -133,6 +135,29 @@ public enum ComparisonOperator {
       case LESS_THAN_OR_EQUAL -> v -> v.compareTo(literal) <= 0;
       case GREATER_THAN -> v -> v.compareTo(literal) > 0;
       case GREATER_THAN_OR_EQUAL -> v -> v.compareTo(literal) >= 0;
+    };
+  }
+
+  /**
+   * Builds an Iceberg {@link Expression} that applies this operator to {@code columnName} and
+   * {@code literal}.
+   *
+   * <p>The returned expression is suitable for {@link
+   * org.apache.iceberg.TableScan#filter(Expression)} pushdown, enabling Iceberg's manifest, file,
+   * and row-group pruning.
+   *
+   * @param columnName the column to compare
+   * @param literal the literal value (must be a type Iceberg accepts for the column type)
+   * @return the equivalent Iceberg expression
+   */
+  public Expression asIcebergExpression(String columnName, Object literal) {
+    return switch (this) {
+      case EQUALS -> Expressions.equal(columnName, literal);
+      case NOT_EQUALS -> Expressions.notEqual(columnName, literal);
+      case LESS_THAN -> Expressions.lessThan(columnName, literal);
+      case LESS_THAN_OR_EQUAL -> Expressions.lessThanOrEqual(columnName, literal);
+      case GREATER_THAN -> Expressions.greaterThan(columnName, literal);
+      case GREATER_THAN_OR_EQUAL -> Expressions.greaterThanOrEqual(columnName, literal);
     };
   }
 

@@ -3,12 +3,15 @@ package io.cryolite.data;
 import io.cryolite.filter.ArrowBatchFilter;
 import io.cryolite.filter.BatchPredicate;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableScan;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.CloseableIterator;
 
@@ -47,6 +50,21 @@ public class TableScanner {
   }
 
   /**
+   * Scans the table without projection or filter – returns all columns and all rows.
+   *
+   * @return a closeable iterable of Arrow batches
+   * @throws IOException if reading fails
+   */
+  public CloseableIterable<VectorSchemaRoot> scan() throws IOException {
+    try (TableReader reader = new TableReader(table)) {
+      CloseableIterable<VectorSchemaRoot> source = reader.readBatches();
+      BufferAllocator allocator =
+          new RootAllocator(); // NOSONAR S2095: closed by FilteredBatchIterable
+      return new FilteredBatchIterable(source, null, allocator);
+    }
+  }
+
+  /**
    * Scans the table with a residual filter applied to the Arrow batches.
    *
    * @param predicate the row predicate for filtering; must not be null
@@ -54,15 +72,52 @@ public class TableScanner {
    * @throws IOException if reading fails
    */
   public CloseableIterable<VectorSchemaRoot> scan(BatchPredicate predicate) throws IOException {
+    return scan(null, predicate);
+  }
+
+  /**
+   * Scans the table with optional column projection and predicate pushdown.
+   *
+   * <p>If the predicate returns a non-empty Iceberg {@link
+   * org.apache.iceberg.expressions.Expression} from {@link BatchPredicate#toIcebergExpression()},
+   * that expression is pushed down to the {@link TableScan}, enabling Iceberg's manifest- and
+   * file-level pruning (I/O optimization).
+   *
+   * <p>The Arrow-level residual filter is <em>always</em> applied for row-level correctness because
+   * Iceberg's vectorized reader does not evaluate predicates row-by-row – only file-level
+   * statistics are used for pruning during the scan planning phase.
+   *
+   * @param columns columns to project; {@code null} or empty means all columns
+   * @param predicate the row predicate; must not be null
+   * @return a closeable iterable of filtered Arrow batches
+   * @throws IOException if reading fails
+   */
+  public CloseableIterable<VectorSchemaRoot> scan(
+      Collection<String> columns, BatchPredicate predicate) throws IOException {
     Objects.requireNonNull(predicate, "predicate must not be null");
 
+    TableScan tableScan = table.newScan();
+
+    // Push down column projection
+    if (columns != null && !columns.isEmpty()) {
+      tableScan = tableScan.select(List.copyOf(columns));
+    }
+
+    // Push down filter to Iceberg for manifest/file pruning (I/O optimization).
+    // TableScan is immutable: filter() returns a new scan, so we must reassign.
+    var icebergExpr = predicate.toIcebergExpression();
+    if (icebergExpr.isPresent()) {
+      tableScan = tableScan.filter(icebergExpr.get());
+    }
+
+    // Always apply Arrow residual filter for row-level correctness
+    ArrowBatchFilter residualFilter = new ArrowBatchFilter(predicate);
+
     try (TableReader reader = new TableReader(table)) {
-      CloseableIterable<VectorSchemaRoot> source = reader.readBatches();
-      ArrowBatchFilter filter = new ArrowBatchFilter(predicate);
+      CloseableIterable<VectorSchemaRoot> source = reader.readBatches(tableScan);
       BufferAllocator allocator =
           new RootAllocator(); // NOSONAR S2095: closed by FilteredBatchIterable
-
-      return new FilteredBatchIterable(source, filter, allocator);
+      return new FilteredBatchIterable(source, residualFilter, allocator);
     }
   }
 
@@ -145,7 +200,8 @@ public class TableScanner {
       }
       closeCurrent();
       VectorSchemaRoot sourceBatch = sourceIterator.next();
-      currentFiltered = filter.filter(sourceBatch, allocator);
+      // filter == null: no predicate filtering (e.g. plain scan()), pass the batch through as-is
+      currentFiltered = (filter == null) ? sourceBatch : filter.filter(sourceBatch, allocator);
       return currentFiltered;
     }
 

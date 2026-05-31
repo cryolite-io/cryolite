@@ -85,9 +85,19 @@ This document tracks the development milestones for CRYOLITE. Each milestone del
 - All six comparison operators (=, !=, <, <=, >, >=) and AND conjunctions
 - 208 tests with 85%+ coverage across all packages
 
-## Current: M9 – Pushdown: Projection + Filter AND → Iceberg
+## ✅ M9 – Pushdown: Projection + Filter AND → Iceberg
 
-### M10 – Pushdown: Partition Pruning / Manifest Pruning
+- `BatchPredicate.toIcebergExpression()` – default method mapping predicates to Iceberg `Expression`
+- `ComparisonPredicate.toIcebergExpression()` – maps each comparison operator to Iceberg expression
+- `AndPredicate.toIcebergExpression()` – combines pushable child expressions via `Expressions.and()`
+- `TableScanner.scan(columns, predicate)` – pushes projection (`select`) and filter to Iceberg for manifest/file pruning; always applies Arrow residual filter for row-level correctness
+- `CryoliteEngine.scan(tableId, columns, predicate)` – new 3-arg overload delegating to `TableScanner`
+- `SqlQueryInterpreter` – resolves column list from SELECT AST; uses 3-arg scan overload
+- 225 tests with 85%+ coverage across all packages
+
+## Current: M10 – Pushdown: Partition Pruning / Manifest Pruning
+
+### M11 – Pushdown: Parquet Reader Filter
 ### M11 – Pushdown: Parquet Reader Filter
 ### M12 – SQL: OR / NOT
 ### M13 – SQL: IN / NOT IN

@@ -155,10 +155,13 @@ public class CryoliteEngine {
   }
 
   /**
-   * Scans the specified table with a filter predicate and returns matching data as Arrow batches.
+   * Scans the specified table with a filter predicate, pushing the filter down to Iceberg when
+   * possible.
    *
-   * <p>The predicate is applied as a residual filter on Arrow batches. In future milestones (M9+),
-   * the scanner will also convert predicates to Iceberg expressions for pushdown optimization.
+   * <p>If the predicate returns a non-empty Iceberg expression from {@link
+   * BatchPredicate#toIcebergExpression()}, it is pushed down to the {@link
+   * org.apache.iceberg.TableScan}. Otherwise the predicate is applied as a residual Arrow-level
+   * filter.
    *
    * <p><b>Memory Lifecycle:</b> Each filtered batch is valid only until the next call to {@code
    * next()} or until the iterable is closed. The scanner manages the allocator for filtered
@@ -172,12 +175,31 @@ public class CryoliteEngine {
    */
   public CloseableIterable<VectorSchemaRoot> scan(TableIdentifier tableId, BatchPredicate predicate)
       throws IOException {
+    return scan(tableId, null, predicate);
+  }
+
+  /**
+   * Scans the specified table with column projection and filter pushdown.
+   *
+   * <p>Both the projection and the filter are pushed down to the Iceberg scan level when possible.
+   * See {@link io.cryolite.data.TableScanner#scan(java.util.Collection, BatchPredicate)} for the
+   * pushdown semantics.
+   *
+   * @param tableId the table to scan
+   * @param columns columns to project; {@code null} or empty means all columns
+   * @param predicate the filter predicate to apply; must not be null
+   * @return a closeable iterable of filtered Arrow batches
+   * @throws IllegalStateException if the engine is closed
+   * @throws IOException if reading fails
+   */
+  public CloseableIterable<VectorSchemaRoot> scan(
+      TableIdentifier tableId, List<String> columns, BatchPredicate predicate) throws IOException {
     if (closed) {
       throw new IllegalStateException("Engine is closed");
     }
     Table table = catalogManager.getCatalog().loadTable(tableId);
     TableScanner scanner = new TableScanner(table);
-    return scanner.scan(predicate);
+    return scanner.scan(columns, predicate);
   }
 
   /**

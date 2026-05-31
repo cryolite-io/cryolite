@@ -110,4 +110,43 @@ class AndPredicateTest {
     assertEquals(1, and.getOperands().size());
     assertThrows(UnsupportedOperationException.class, () -> and.getOperands().clear());
   }
+
+  // ── Iceberg pushdown ─────────────────────────────────────────────────────
+
+  @Test
+  void toIcebergExpressionEmptyOperandsReturnsAlwaysTrue() {
+    AndPredicate and = new AndPredicate(List.of());
+    var expr = and.toIcebergExpression();
+    assertTrue(expr.isPresent());
+    assertEquals(org.apache.iceberg.expressions.Expression.Operation.TRUE, expr.get().op());
+  }
+
+  @Test
+  void toIcebergExpressionAllPushableReturnsCombinedAnd() {
+    ComparisonPredicate p1 = new ComparisonPredicate("id", ComparisonOperator.GREATER_THAN, 0L);
+    ComparisonPredicate p2 = new ComparisonPredicate("id", ComparisonOperator.LESS_THAN, 100L);
+    AndPredicate and = new AndPredicate(List.of(p1, p2));
+    var expr = and.toIcebergExpression();
+    assertTrue(expr.isPresent());
+    assertEquals(org.apache.iceberg.expressions.Expression.Operation.AND, expr.get().op());
+  }
+
+  @Test
+  void toIcebergExpressionSinglePushableReturnsPresent() {
+    ComparisonPredicate p1 = new ComparisonPredicate("id", ComparisonOperator.EQUALS, 42L);
+    AndPredicate and = new AndPredicate(List.of(p1));
+    var expr = and.toIcebergExpression();
+    assertTrue(expr.isPresent());
+    assertEquals(org.apache.iceberg.expressions.Expression.Operation.EQ, expr.get().op());
+  }
+
+  @Test
+  void toIcebergExpressionNotPushableOperandReturnsEmpty() {
+    // A lambda-based predicate cannot provide an Iceberg expression (returns Optional.empty())
+    BatchPredicate nonPushable = batch -> new java.util.BitSet(batch.getRowCount());
+    ComparisonPredicate pushable = new ComparisonPredicate("id", ComparisonOperator.EQUALS, 1L);
+    AndPredicate and = new AndPredicate(List.of(pushable, nonPushable));
+    var expr = and.toIcebergExpression();
+    assertTrue(expr.isEmpty(), "Expected empty when any operand is not pushable");
+  }
 }

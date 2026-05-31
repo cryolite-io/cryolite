@@ -6,9 +6,12 @@ import io.cryolite.sql.SqlExecutionException;
 import io.cryolite.sql.filter.SqlWhereConverter;
 import io.cryolite.sql.util.SqlIdentifiers;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -53,8 +56,8 @@ public class SqlQueryInterpreter {
   /**
    * Executes a {@code SELECT} query and returns the result as Arrow columnar batches.
    *
-   * <p>If the query contains a WHERE clause, the filter is applied as residual evaluation on each
-   * Arrow batch. Filtered batches are newly allocated and owned by the caller.
+   * <p>In M9, both the column projection (SELECT list) and the filter (WHERE clause) are pushed
+   * down to the engine scan level when the predicate is fully covered by an Iceberg expression.
    *
    * <p>The caller is responsible for closing the returned iterable to release Arrow memory.
    *
@@ -64,12 +67,12 @@ public class SqlQueryInterpreter {
    */
   public CloseableIterable<VectorSchemaRoot> execute(SqlSelect select) {
     TableIdentifier tableId = resolveTableIdentifier(select);
+    List<String> columns = resolveColumnNames(select);
 
-    // If there is no WHERE clause, return unfiltered batches
     SqlNode where = select.getWhere();
     if (where == null) {
       try {
-        return engine.scan(tableId);
+        return columns == null ? engine.scan(tableId) : engine.scan(tableId, columns, alwaysTrue());
       } catch (IOException e) {
         throw new SqlExecutionException(
             "Failed to scan table '" + tableId + "': " + e.getMessage(), e);
@@ -80,14 +83,50 @@ public class SqlQueryInterpreter {
     Table table = loadTable(tableId);
     Schema schema = table.schema();
 
-    // Convert the WHERE clause to a batch predicate and delegate filtering to the engine
+    // Convert the WHERE clause to a batch predicate (with Iceberg expression if pushable)
     BatchPredicate predicate = SqlWhereConverter.convert(where, schema);
     try {
-      return engine.scan(tableId, predicate);
+      return engine.scan(tableId, columns, predicate);
     } catch (IOException e) {
       throw new SqlExecutionException(
           "Failed to scan table '" + tableId + "': " + e.getMessage(), e);
     }
+  }
+
+  /**
+   * Returns a {@link BatchPredicate} that matches every row (used when no WHERE clause exists but
+   * projection pushdown is still needed).
+   */
+  private static BatchPredicate alwaysTrue() {
+    return batch -> {
+      java.util.BitSet all = new java.util.BitSet(batch.getRowCount());
+      all.set(0, batch.getRowCount());
+      return all;
+    };
+  }
+
+  /**
+   * Resolves the column names from the SELECT list.
+   *
+   * @return the column name list, or {@code null} for {@code SELECT *}
+   */
+  private List<String> resolveColumnNames(SqlSelect select) {
+    SqlNodeList selectList = select.getSelectList();
+    if (selectList == null) {
+      return null;
+    }
+    List<String> names = new ArrayList<>();
+    for (SqlNode node : selectList) {
+      if (node instanceof SqlIdentifier id) {
+        if (id.isStar()) {
+          return null; // SELECT * → all columns
+        }
+        names.add(id.getSimple());
+      } else {
+        throw new SqlExecutionException("Unsupported expression in SELECT list: '" + node + "'");
+      }
+    }
+    return names;
   }
 
   private Table loadTable(TableIdentifier tableId) {

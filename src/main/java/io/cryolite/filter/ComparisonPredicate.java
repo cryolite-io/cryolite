@@ -3,6 +3,7 @@ package io.cryolite.filter;
 import java.nio.charset.StandardCharsets;
 import java.util.BitSet;
 import java.util.Objects;
+import java.util.Optional;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float4Vector;
@@ -10,6 +11,7 @@ import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.iceberg.expressions.Expression;
 
 /**
  * A batch predicate that compares a column value against a literal using a comparison operator.
@@ -117,5 +119,17 @@ public class ComparisonPredicate implements BatchPredicate {
   /** Returns the literal value. */
   public Comparable<?> getLiteral() {
     return literal;
+  }
+
+  /**
+   * Returns an Iceberg expression equivalent to this comparison, enabling pushdown.
+   *
+   * <p>All six supported operators map directly to {@link
+   * org.apache.iceberg.expressions.Expressions}, so the result fully covers the predicate and the
+   * residual Arrow evaluation can be skipped.
+   */
+  @Override
+  public Optional<Expression> toIcebergExpression() {
+    return Optional.of(operator.asIcebergExpression(columnName, literal));
   }
 }

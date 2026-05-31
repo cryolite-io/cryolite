@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.cryolite.arrow.SchemaConverter;
 import java.util.BitSet;
+import java.util.List;
+import java.util.Optional;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
@@ -14,6 +16,8 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.expressions.UnboundPredicate;
 import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.Test;
 
@@ -399,5 +403,49 @@ class ComparisonPredicateTest {
     assertEquals("age", pred.getColumnName());
     assertEquals(ComparisonOperator.LESS_THAN, pred.getOperator());
     assertEquals(30L, pred.getLiteral());
+  }
+
+  // ── Iceberg pushdown ─────────────────────────────────────────────────────
+
+  @Test
+  void toIcebergExpressionIsPresentForAllOperators() {
+    for (ComparisonOperator op : ComparisonOperator.values()) {
+      ComparisonPredicate pred = new ComparisonPredicate("score", op, 42L);
+      Optional<Expression> expr = pred.toIcebergExpression();
+      assertTrue(expr.isPresent(), "Expected expression for operator " + op);
+    }
+  }
+
+  @Test
+  void toIcebergExpressionIsUnboundPredicateWithCorrectReference() {
+    ComparisonPredicate pred = new ComparisonPredicate("id", ComparisonOperator.EQUALS, 7L);
+    Optional<Expression> exprOpt = pred.toIcebergExpression();
+    assertTrue(exprOpt.isPresent());
+    Expression expr = exprOpt.get();
+    assertTrue(
+        expr instanceof UnboundPredicate<?>, "Expected UnboundPredicate, got " + expr.getClass());
+    UnboundPredicate<?> unboundPredicate = (UnboundPredicate<?>) expr;
+    assertEquals(Expression.Operation.EQ, unboundPredicate.op());
+    assertEquals("id", unboundPredicate.ref().name());
+  }
+
+  @Test
+  void toIcebergExpressionOperatorMapping() {
+    record Case(ComparisonOperator op, Expression.Operation expectedOp) {}
+    List.of(
+            new Case(ComparisonOperator.EQUALS, Expression.Operation.EQ),
+            new Case(ComparisonOperator.NOT_EQUALS, Expression.Operation.NOT_EQ),
+            new Case(ComparisonOperator.LESS_THAN, Expression.Operation.LT),
+            new Case(ComparisonOperator.LESS_THAN_OR_EQUAL, Expression.Operation.LT_EQ),
+            new Case(ComparisonOperator.GREATER_THAN, Expression.Operation.GT),
+            new Case(ComparisonOperator.GREATER_THAN_OR_EQUAL, Expression.Operation.GT_EQ))
+        .forEach(
+            c -> {
+              ComparisonPredicate pred = new ComparisonPredicate("x", c.op(), 1L);
+              Optional<Expression> expr = pred.toIcebergExpression();
+              assertTrue(expr.isPresent());
+              assertEquals(
+                  c.expectedOp(), expr.get().op(), "Operator mapping failed for " + c.op());
+            });
   }
 }

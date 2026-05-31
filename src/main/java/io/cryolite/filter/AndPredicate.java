@@ -3,7 +3,10 @@ package io.cryolite.filter;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.expressions.Expressions;
 
 /**
  * A composite predicate that combines multiple predicates with logical AND semantics.
@@ -48,5 +51,31 @@ public class AndPredicate implements BatchPredicate {
   /** Returns the list of operands. */
   public List<BatchPredicate> getOperands() {
     return operands;
+  }
+
+  /**
+   * Returns an Iceberg expression equivalent to this AND predicate, enabling pushdown.
+   *
+   * <p>Present only when <em>all</em> operands are individually pushable (i.e., all return a
+   * non-empty {@link Optional} from {@link BatchPredicate#toIcebergExpression()}). If any operand
+   * is not pushable, the whole AND is not pushed down and the residual Arrow filter runs.
+   *
+   * <p>An empty operand list is vacuously true and maps to {@link Expressions#alwaysTrue()}.
+   */
+  @Override
+  public Optional<Expression> toIcebergExpression() {
+    if (operands.isEmpty()) {
+      return Optional.of(Expressions.alwaysTrue());
+    }
+
+    Expression combined = null;
+    for (BatchPredicate operand : operands) {
+      Optional<Expression> expr = operand.toIcebergExpression();
+      if (expr.isEmpty()) {
+        return Optional.empty(); // not fully pushable
+      }
+      combined = (combined == null) ? expr.get() : Expressions.and(combined, expr.get());
+    }
+    return Optional.ofNullable(combined);
   }
 }

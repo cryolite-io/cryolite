@@ -8,6 +8,7 @@ import io.cryolite.filter.BatchPredicate;
 import io.cryolite.sql.SqlExecutionException;
 import io.cryolite.sql.SqlSession;
 import java.io.IOException;
+import java.util.List;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -104,7 +105,7 @@ class SqlQueryInterpreterTest {
     when(catalog.tableExists(any(TableIdentifier.class))).thenReturn(true);
     when(catalog.loadTable(any(TableIdentifier.class))).thenReturn(table);
 
-    when(engine.scan(any(TableIdentifier.class), any(BatchPredicate.class)))
+    when(engine.scan(any(TableIdentifier.class), isNull(), any(BatchPredicate.class)))
         .thenThrow(new IOException("storage offline"));
 
     try (SqlSession session = new SqlSession(engine)) {
@@ -133,6 +134,75 @@ class SqlQueryInterpreterTest {
       assertTrue(
           ex.getMessage().contains("Table does not exist"),
           "Error should mention table not found, was: " + ex.getMessage());
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void selectColumnListPushesProjectionToEngine() throws Exception {
+    CryoliteEngine engine = mockEngine();
+    CloseableIterable<VectorSchemaRoot> expectedBatches = mock(CloseableIterable.class);
+    when(engine.scan(any(TableIdentifier.class), any(List.class), any(BatchPredicate.class)))
+        .thenReturn(expectedBatches);
+
+    try (SqlSession session = new SqlSession(engine)) {
+      CloseableIterable<VectorSchemaRoot> result =
+          session.query("SELECT id, name FROM test_ns.test_table");
+      assertSame(expectedBatches, result);
+    }
+
+    verify(engine)
+        .scan(
+            eq(TableIdentifier.of("test_ns", "test_table")),
+            eq(List.of("id", "name")),
+            any(BatchPredicate.class));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void selectColumnListWithWhereUsesThreeArgScan() throws Exception {
+    CryoliteEngine engine = mockEngine();
+    Table table = mock(Table.class);
+    Schema schema =
+        new Schema(
+            Types.NestedField.required(1, "id", Types.LongType.get()),
+            Types.NestedField.optional(2, "name", Types.StringType.get()));
+    when(table.schema()).thenReturn(schema);
+
+    Catalog catalog = engine.getCatalog();
+    when(catalog.tableExists(any(TableIdentifier.class))).thenReturn(true);
+    when(catalog.loadTable(any(TableIdentifier.class))).thenReturn(table);
+
+    CloseableIterable<VectorSchemaRoot> expectedBatches = mock(CloseableIterable.class);
+    when(engine.scan(any(TableIdentifier.class), any(List.class), any(BatchPredicate.class)))
+        .thenReturn(expectedBatches);
+
+    try (SqlSession session = new SqlSession(engine)) {
+      CloseableIterable<VectorSchemaRoot> result =
+          session.query("SELECT id FROM test_ns.test_table WHERE id = 1");
+      assertSame(expectedBatches, result);
+    }
+
+    verify(engine)
+        .scan(
+            eq(TableIdentifier.of("test_ns", "test_table")),
+            eq(List.of("id")),
+            any(BatchPredicate.class));
+  }
+
+  @Test
+  void unsupportedSelectListExpressionThrowsSqlExecutionException() {
+    CryoliteEngine engine = mockEngine();
+
+    try (SqlSession session = new SqlSession(engine)) {
+      // "1 + 1" is a call expression, not a simple identifier – should throw
+      SqlExecutionException ex =
+          assertThrows(
+              SqlExecutionException.class,
+              () -> session.query("SELECT 1 + 1 FROM test_ns.test_table"));
+      assertTrue(
+          ex.getMessage().contains("Unsupported expression in SELECT list"),
+          "Unexpected message: " + ex.getMessage());
     }
   }
 }

@@ -1,7 +1,9 @@
 package io.cryolite.filter;
 
 import java.util.BitSet;
+import java.util.Optional;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.iceberg.expressions.Expression;
 
 /**
  * A predicate that evaluates an entire Arrow batch column-wise and returns a selection vector.
@@ -37,4 +39,22 @@ public interface BatchPredicate {
    * @return a selection vector where set bits indicate matching rows
    */
   BitSet evaluate(VectorSchemaRoot batch);
+
+  /**
+   * Returns an Iceberg {@link Expression} that fully covers this predicate, enabling pushdown to
+   * the Iceberg scan layer (manifest, file, and row-group pruning).
+   *
+   * <p><b>Coverage contract:</b> if the returned {@link Optional} is present, the expression is
+   * semantically equivalent to this predicate and the residual Arrow-level filter can be skipped.
+   * If absent, the predicate is not (fully) pushable and the residual Arrow-level filter must run
+   * for correctness.
+   *
+   * <p>The default returns {@link Optional#empty()} so any new predicate type is safe-by-default
+   * (correctness via residual evaluation) until it opts in to pushdown.
+   *
+   * @return the pushable expression, or empty if pushdown is not possible
+   */
+  default Optional<Expression> toIcebergExpression() {
+    return Optional.empty();
+  }
 }
