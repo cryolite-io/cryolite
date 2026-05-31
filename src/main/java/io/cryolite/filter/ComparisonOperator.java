@@ -1,11 +1,17 @@
 package io.cryolite.filter;
 
+import java.util.function.DoublePredicate;
+import java.util.function.LongPredicate;
+import java.util.function.Predicate;
+
 /**
  * Standard SQL comparison operators for use in {@link ComparisonPredicate}.
  *
- * <p>Each operator implements the comparison using {@link Comparable} semantics. Both operands are
- * cast to {@code Comparable} and compared via {@link Comparable#compareTo}. The operators handle
- * type coercion for common numeric promotions (e.g., Integer vs Long).
+ * <p>Each operator implements the comparison using {@link Comparable} semantics for generic types,
+ * and provides boxing-free primitive variants via {@link #asLongPredicate}, {@link
+ * #asDoublePredicate}, and {@link #asStringPredicate}. These primitive variants allow tight loops
+ * in {@link ComparisonPredicate} without allocating {@code Long} or {@code Double} wrappers on
+ * every row.
  *
  * @since 0.1.0
  */
@@ -66,6 +72,68 @@ public enum ComparisonOperator {
    * @return {@code true} if the comparison holds
    */
   public abstract boolean apply(Object columnValue, Comparable<?> literal);
+
+  /**
+   * Returns a boxing-free {@link LongPredicate} that applies this operator against {@code literal}.
+   *
+   * <p>The predicate is built once per column evaluation and reused for every row, so the operator
+   * switch is paid only once rather than on each iteration.
+   *
+   * @param literal the long literal to compare against
+   * @return a primitive predicate for use in tight loops over {@code BigIntVector} / {@code IntVector}
+   */
+  public LongPredicate asLongPredicate(long literal) {
+    return switch (this) {
+      case EQUALS -> v -> v == literal;
+      case NOT_EQUALS -> v -> v != literal;
+      case LESS_THAN -> v -> v < literal;
+      case LESS_THAN_OR_EQUAL -> v -> v <= literal;
+      case GREATER_THAN -> v -> v > literal;
+      case GREATER_THAN_OR_EQUAL -> v -> v >= literal;
+    };
+  }
+
+  /**
+   * Returns a boxing-free {@link DoublePredicate} that applies this operator against {@code
+   * literal}.
+   *
+   * <p>Used for both {@code Float8Vector} (double) and {@code Float4Vector} (float promoted to
+   * double) columns.
+   *
+   * @param literal the double literal to compare against
+   * @return a primitive predicate for use in tight loops over floating-point vectors
+   */
+  public DoublePredicate asDoublePredicate(double literal) {
+    return switch (this) {
+      case EQUALS -> v -> v == literal;
+      case NOT_EQUALS -> v -> v != literal;
+      case LESS_THAN -> v -> v < literal;
+      case LESS_THAN_OR_EQUAL -> v -> v <= literal;
+      case GREATER_THAN -> v -> v > literal;
+      case GREATER_THAN_OR_EQUAL -> v -> v >= literal;
+    };
+  }
+
+  /**
+   * Returns a {@link Predicate Predicate&lt;String&gt;} that applies this operator against {@code
+   * literal}.
+   *
+   * <p>Uses {@link String#equals} for equality checks and {@link String#compareTo} for ordering,
+   * matching standard SQL string comparison semantics.
+   *
+   * @param literal the string literal to compare against
+   * @return a string predicate for use in tight loops over {@code VarCharVector} columns
+   */
+  public Predicate<String> asStringPredicate(String literal) {
+    return switch (this) {
+      case EQUALS -> v -> v.equals(literal);
+      case NOT_EQUALS -> v -> !v.equals(literal);
+      case LESS_THAN -> v -> v.compareTo(literal) < 0;
+      case LESS_THAN_OR_EQUAL -> v -> v.compareTo(literal) <= 0;
+      case GREATER_THAN -> v -> v.compareTo(literal) > 0;
+      case GREATER_THAN_OR_EQUAL -> v -> v.compareTo(literal) >= 0;
+    };
+  }
 
   /**
    * Compares two values with numeric type promotion.

@@ -3,9 +3,6 @@ package io.cryolite.filter;
 import java.nio.charset.StandardCharsets;
 import java.util.BitSet;
 import java.util.Objects;
-import java.util.function.DoublePredicate;
-import java.util.function.LongPredicate;
-import java.util.function.Predicate;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float4Vector;
@@ -24,11 +21,11 @@ import org.apache.arrow.vector.VectorSchemaRoot;
  * <p>Supports the standard SQL comparison operators: {@code =}, {@code <>}, {@code <}, {@code <=},
  * {@code >}, {@code >=}.
  *
- * <p>Type dispatch: the vector type is examined once per {@code evaluate()} call and a
- * type-specific primitive loop is used. This avoids per-row boxing (e.g., {@code long → Long})
- * that occurs with {@link FieldVector#getObject}. For example, {@link BigIntVector#get} returns a
- * primitive {@code long} that is compared directly via a {@link LongPredicate}. Unsupported vector
- * types fall back to {@code getObject()}.
+ * <p>Type dispatch: the vector type is examined once per {@code evaluate()} call. A type-specific
+ * predicate is obtained from {@link ComparisonOperator} (e.g., {@link
+ * ComparisonOperator#asLongPredicate}) and reused for every row. This avoids per-row boxing and
+ * keeps the operator switch out of the hot loop. Unsupported vector types fall back to {@code
+ * getObject()}.
  *
  * <p>NULL handling follows SQL three-valued logic: any comparison involving NULL yields {@code
  * false} (the row does not match).
@@ -59,133 +56,52 @@ public class ComparisonPredicate implements BatchPredicate {
   public BitSet evaluate(VectorSchemaRoot batch) {
     int rowCount = batch.getRowCount();
     BitSet selection = new BitSet(rowCount);
-
     FieldVector vector = batch.getVector(columnName);
     if (vector == null) {
       return selection; // all bits clear → no matches
     }
 
-    // Dispatch once on vector type; each branch runs a tight primitive loop.
+    // Dispatch once on vector type. The predicate is built once and reused per row,
+    // keeping the operator switch out of the hot loop.
     if (vector instanceof BigIntVector v) {
-      return evaluateLong(v, rowCount, selection);
+      var test = operator.asLongPredicate(((Number) literal).longValue());
+      for (int i = 0; i < rowCount; i++) {
+        if (!v.isNull(i) && test.test(v.get(i))) selection.set(i);
+      }
     } else if (vector instanceof IntVector v) {
-      return evaluateInt(v, rowCount, selection);
+      // Promote int to long – reuses the same long comparator.
+      var test = operator.asLongPredicate(((Number) literal).longValue());
+      for (int i = 0; i < rowCount; i++) {
+        if (!v.isNull(i) && test.test(v.get(i))) selection.set(i);
+      }
     } else if (vector instanceof Float8Vector v) {
-      return evaluateDouble(v, rowCount, selection);
+      var test = operator.asDoublePredicate(((Number) literal).doubleValue());
+      for (int i = 0; i < rowCount; i++) {
+        if (!v.isNull(i) && test.test(v.get(i))) selection.set(i);
+      }
     } else if (vector instanceof Float4Vector v) {
-      return evaluateFloat(v, rowCount, selection);
+      // Promote float to double – reuses the same double comparator.
+      var test = operator.asDoublePredicate(((Number) literal).doubleValue());
+      for (int i = 0; i < rowCount; i++) {
+        if (!v.isNull(i) && test.test(v.get(i))) selection.set(i);
+      }
     } else if (vector instanceof VarCharVector v) {
-      return evaluateVarChar(v, rowCount, selection);
+      var test = operator.asStringPredicate(literal.toString());
+      for (int i = 0; i < rowCount; i++) {
+        if (!v.isNull(i) && test.test(new String(v.get(i), StandardCharsets.UTF_8))) {
+          selection.set(i);
+        }
+      }
     } else {
-      return evaluateGeneric(vector, rowCount, selection);
-    }
-  }
-
-  // --- Type-specific primitive loops (no boxing) ---
-
-  private BitSet evaluateLong(BigIntVector vec, int rowCount, BitSet selection) {
-    LongPredicate test = buildLongComparator(((Number) literal).longValue());
-    for (int i = 0; i < rowCount; i++) {
-      if (!vec.isNull(i) && test.test(vec.get(i))) {
-        selection.set(i);
-      }
-    }
-    return selection;
-  }
-
-  private BitSet evaluateInt(IntVector vec, int rowCount, BitSet selection) {
-    // Promote int literal to long so the same comparator works for both int and long columns.
-    LongPredicate test = buildLongComparator(((Number) literal).longValue());
-    for (int i = 0; i < rowCount; i++) {
-      if (!vec.isNull(i) && test.test(vec.get(i))) {
-        selection.set(i);
-      }
-    }
-    return selection;
-  }
-
-  private BitSet evaluateDouble(Float8Vector vec, int rowCount, BitSet selection) {
-    DoublePredicate test = buildDoubleComparator(((Number) literal).doubleValue());
-    for (int i = 0; i < rowCount; i++) {
-      if (!vec.isNull(i) && test.test(vec.get(i))) {
-        selection.set(i);
-      }
-    }
-    return selection;
-  }
-
-  private BitSet evaluateFloat(Float4Vector vec, int rowCount, BitSet selection) {
-    // Promote float to double so the same comparator works for both float and double columns.
-    DoublePredicate test = buildDoubleComparator(((Number) literal).doubleValue());
-    for (int i = 0; i < rowCount; i++) {
-      if (!vec.isNull(i) && test.test(vec.get(i))) {
-        selection.set(i);
-      }
-    }
-    return selection;
-  }
-
-  private BitSet evaluateVarChar(VarCharVector vec, int rowCount, BitSet selection) {
-    String litStr = literal.toString();
-    Predicate<String> test = buildStringComparator(litStr);
-    for (int i = 0; i < rowCount; i++) {
-      if (!vec.isNull(i)) {
-        // Use get(i) → byte[] to skip Arrow's Text wrapper allocation
-        String value = new String(vec.get(i), StandardCharsets.UTF_8);
-        if (test.test(value)) {
-          selection.set(i);
+      // Fallback for unsupported types (Decimal, Binary, UUID, Boolean, …).
+      for (int i = 0; i < rowCount; i++) {
+        if (!vector.isNull(i)) {
+          Object value = vector.getObject(i);
+          if (value != null && operator.apply(value, literal)) selection.set(i);
         }
       }
     }
     return selection;
-  }
-
-  /** Fallback for unsupported vector types (Decimal, Binary, UUID, etc.). */
-  private BitSet evaluateGeneric(FieldVector vector, int rowCount, BitSet selection) {
-    for (int i = 0; i < rowCount; i++) {
-      if (!vector.isNull(i)) {
-        Object value = vector.getObject(i);
-        if (value != null && operator.apply(value, literal)) {
-          selection.set(i);
-        }
-      }
-    }
-    return selection;
-  }
-
-  // --- Comparator builders: dispatch operator once, return a primitive functional interface ---
-
-  private LongPredicate buildLongComparator(long litVal) {
-    return switch (operator) {
-      case EQUALS -> v -> v == litVal;
-      case NOT_EQUALS -> v -> v != litVal;
-      case LESS_THAN -> v -> v < litVal;
-      case LESS_THAN_OR_EQUAL -> v -> v <= litVal;
-      case GREATER_THAN -> v -> v > litVal;
-      case GREATER_THAN_OR_EQUAL -> v -> v >= litVal;
-    };
-  }
-
-  private DoublePredicate buildDoubleComparator(double litVal) {
-    return switch (operator) {
-      case EQUALS -> v -> v == litVal;
-      case NOT_EQUALS -> v -> v != litVal;
-      case LESS_THAN -> v -> v < litVal;
-      case LESS_THAN_OR_EQUAL -> v -> v <= litVal;
-      case GREATER_THAN -> v -> v > litVal;
-      case GREATER_THAN_OR_EQUAL -> v -> v >= litVal;
-    };
-  }
-
-  private Predicate<String> buildStringComparator(String litStr) {
-    return switch (operator) {
-      case EQUALS -> v -> v.equals(litStr);
-      case NOT_EQUALS -> v -> !v.equals(litStr);
-      case LESS_THAN -> v -> v.compareTo(litStr) < 0;
-      case LESS_THAN_OR_EQUAL -> v -> v.compareTo(litStr) <= 0;
-      case GREATER_THAN -> v -> v.compareTo(litStr) > 0;
-      case GREATER_THAN_OR_EQUAL -> v -> v.compareTo(litStr) >= 0;
-    };
   }
 
   /** Returns the column name this predicate operates on. */
