@@ -95,10 +95,15 @@ This document tracks the development milestones for CRYOLITE. Each milestone del
 - `SqlQueryInterpreter` – resolves column list from SELECT AST; uses 3-arg scan overload
 - 225 tests with 85%+ coverage across all packages
 
-## Current: M10 – Pushdown: Partition Pruning / Manifest Pruning
+## ✅ M10 – Pushdown: Partition Pruning / Manifest Pruning
 
-### M11 – Pushdown: Parquet Reader Filter
-### M11 – Pushdown: Parquet Reader Filter
+- Integration test `PartitionPruningIntegrationTest` verifies that filtering on partition columns correctly prunes files at the Iceberg level.
+- Support for identity partitioning (String, Long) verified.
+- Verified that Iceberg's `planFiles()` correctly skips non-matching partitions, reducing I/O.
+- Verified that residual Arrow-level filtering still works correctly for non-pushable or additional row-level constraints.
+- 228 tests with 85%+ coverage across all packages.
+
+## Current: M11 – Pushdown: Parquet Reader Filter
 ### M12 – SQL: OR / NOT
 ### M13 – SQL: IN / NOT IN
 ### M14 – SQL: BETWEEN / NOT BETWEEN
