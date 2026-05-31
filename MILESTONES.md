@@ -111,6 +111,15 @@ This document tracks the development milestones for CRYOLITE. Each milestone del
 - Verified: out-of-range filter `id = 9999` prunes all 3 files (plan returns 0 tasks).
 - Foundation for Parquet row-group pruning: Iceberg's vectorized reader receives the same filter and applies it via Parquet's own row-group statistics.
 
+## ✅ M11.5 – Deep Pruning Verification (Combined / RowGroup / Page Index / Bloom Filter)
+
+- `TableWriter` now propagates table write properties (e.g. `write.parquet.row-group-size-bytes`, `write.parquet.page-size-bytes`, `write.parquet.bloom-filter-enabled.column.*`) to the underlying `GenericAppenderFactory`, so Parquet-level tuning configured on the table is actually honoured by writes.
+- `CombinedPruningIntegrationTest` proves the synergy between partition pruning (M10) and file-level statistics pruning (M11): the query `region='EU' AND id=105` against a 2-partition / 4-file table reduces the scan plan to a single file.
+- `RowGroupPruningIntegrationTest` forces a 4 KB row-group target via table properties and proves that a single Parquet file ends up with multiple row groups by inspecting `DataFile.splitOffsets()`; the filtered scan still returns exactly the matching row.
+- `PageIndexVerificationTest` downloads the written Parquet file to a local temp file and asserts via `ParquetFileReader`:
+  - `ColumnIndex` and `OffsetIndex` are written for the filterable column and the tiny page size produces multiple data pages per row group (page-level pruning is physically possible).
+  - When `write.parquet.bloom-filter-enabled.column.<name>` is set, the Parquet footer exposes a Bloom Filter for that column that is readable via `ParquetFileReader.readBloomFilter`.
+
 ## Current: M12 – SQL: OR / NOT
 ### M13 – SQL: IN / NOT IN
 ### M14 – SQL: BETWEEN / NOT BETWEEN

@@ -1,7 +1,14 @@
 package io.cryolite;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
+import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.io.LocalInputFile;
 import org.junit.jupiter.api.BeforeAll;
 
 /**
@@ -58,5 +65,27 @@ public abstract class AbstractIntegrationTest {
    */
   protected String uniqueSuffix() {
     return String.valueOf(System.currentTimeMillis());
+  }
+
+  /**
+   * Downloads a remote Parquet data file (e.g. on S3/MinIO) to a local temporary file and opens a
+   * {@link ParquetFileReader} for footer-level inspection (row groups, column index, bloom filter).
+   *
+   * <p>The returned reader is owned by the caller and must be closed. The temporary file is marked
+   * for deletion on JVM exit.
+   *
+   * @param io the table's {@link FileIO} used to read the remote file
+   * @param dataFileLocation the absolute location of the Parquet file (e.g. {@code s3://...})
+   * @return an open {@link ParquetFileReader} positioned on the downloaded local copy
+   * @throws IOException if downloading or opening the file fails
+   */
+  protected ParquetFileReader openParquetFooter(FileIO io, String dataFileLocation)
+      throws IOException {
+    Path tempFile = Files.createTempFile("cryolite-parquet-", ".parquet");
+    tempFile.toFile().deleteOnExit();
+    try (InputStream in = io.newInputFile(dataFileLocation).newStream()) {
+      Files.copy(in, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    }
+    return ParquetFileReader.open(new LocalInputFile(tempFile));
   }
 }
