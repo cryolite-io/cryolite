@@ -79,9 +79,12 @@ public class TableWriter implements Closeable {
     this.table = table;
     this.committedFiles = new ArrayList<>();
 
-    // Create appender factory for generic records
+    // Create appender factory for generic records.
+    // Propagate the table's write properties (e.g. write.parquet.row-group-size-bytes,
+    // write.parquet.page-size-bytes, write.parquet.bloom-filter-*) so the underlying
+    // Parquet writer honours them instead of using its hard-coded defaults.
     GenericAppenderFactory appenderFactory =
-        new GenericAppenderFactory(table.schema(), table.spec());
+        new GenericAppenderFactory(table.schema(), table.spec()).setAll(table.properties());
 
     // Create output file factory with UUID-based operation ID (avoids hostname issues)
     int partitionId = 0;
