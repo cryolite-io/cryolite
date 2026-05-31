@@ -103,8 +103,15 @@ This document tracks the development milestones for CRYOLITE. Each milestone del
 - Verified that residual Arrow-level filtering still works correctly for non-pushable or additional row-level constraints.
 - 228 tests with 85%+ coverage across all packages.
 
-## Current: M11 – Pushdown: Parquet Reader Filter
-### M12 – SQL: OR / NOT
+## ✅ M11 – Pushdown: Parquet Reader Filter / File-level Statistics Pruning
+
+- Integration test `ParquetReaderFilterIntegrationTest` verifies that Iceberg pushes filters down to the file level via column statistics, independent of partitioning.
+- Setup: unpartitioned table with three separate commits producing three Parquet files with disjoint id ranges (1..10, 100..110, 200..210).
+- Verified: filter `id = 105` reduces the scan plan from 3 files to 1 file.
+- Verified: out-of-range filter `id = 9999` prunes all 3 files (plan returns 0 tasks).
+- Foundation for Parquet row-group pruning: Iceberg's vectorized reader receives the same filter and applies it via Parquet's own row-group statistics.
+
+## Current: M12 – SQL: OR / NOT
 ### M13 – SQL: IN / NOT IN
 ### M14 – SQL: BETWEEN / NOT BETWEEN
 ### M15 – SQL: LIKE
