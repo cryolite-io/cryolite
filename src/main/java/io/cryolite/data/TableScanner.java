@@ -27,8 +27,9 @@ import org.apache.iceberg.io.CloseableIterator;
  *   <li>{@link TableWriter} handles pure I/O (records → Iceberg)
  * </ul>
  *
- * <p>In M9+, the scanner will also convert {@link BatchPredicate} to Iceberg expressions for
- * pushdown, applying only the residual (non-pushable) part as an Arrow-level filter.
+ * <p>The scanner converts {@link BatchPredicate} to Iceberg expressions for pushdown (partition,
+ * manifest, and file-level pruning via the Iceberg scan planner), applying only the residual
+ * (non-pushable) part as an Arrow-level filter for row-level correctness.
  *
  * <p><b>Memory Lifecycle:</b> Each filtered batch is valid only until the next call to {@code
  * next()} or until the iterable is closed. The scanner owns the {@link BufferAllocator} used for

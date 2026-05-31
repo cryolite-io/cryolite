@@ -25,6 +25,7 @@ Provides a simple, high-level API for writing data to Iceberg tables while handl
 - ✅ **Snapshot Management**: Atomic commits
 - ✅ **Resource Management**: Implements `Closeable` for try-with-resources
 - ✅ **Configurable File Size**: Customizable target file size
+- ✅ **Table Property Propagation**: All `write.parquet.*` properties configured on the Iceberg table are passed through to the underlying Parquet writer (since M11.5)
 
 ## Usage Example
 
@@ -84,6 +85,41 @@ try (TableWriter writer = new TableWriter(table, targetFileSize)) {
     writer.commit();
 }
 ```
+
+### Parquet Tuning via Table Properties
+
+Since M11.5, `TableWriter` forwards all table properties to the underlying
+`GenericAppenderFactory`. This means every Parquet-level knob exposed by Iceberg's
+`TableProperties` is honoured at write time:
+
+```java
+// Configure the table once - subsequent writes pick it up automatically
+table.updateProperties()
+    .set("write.parquet.row-group-size-bytes", "4096")        // tiny row groups
+    .set("write.parquet.page-size-bytes",      "1024")        // tiny pages
+    .set("write.parquet.bloom-filter-enabled.column.id", "true")  // bloom filter on `id`
+    .commit();
+
+try (TableWriter writer = new TableWriter(table)) {
+    writer.write(record);
+    writer.commit();
+}
+```
+
+Commonly used properties:
+
+| Property | Purpose |
+|---|---|
+| `write.parquet.row-group-size-bytes` | Target row-group size (default 128 MB) – smaller values give finer-grained row-group pruning |
+| `write.parquet.page-size-bytes` | Target data-page size (default 1 MB) – drives the `OffsetIndex` granularity used by Parquet page-level pruning |
+| `write.parquet.dict-size-bytes` | Target dictionary size per row group |
+| `write.parquet.compression-codec` | Compression algorithm (e.g. `zstd`, `snappy`) |
+| `write.parquet.bloom-filter-enabled.column.<name>` | Enables a Bloom Filter for the given column, used by point lookups |
+
+These properties are part of the foundation that lets Iceberg + Parquet apply
+file, row-group, page, and bloom-filter pruning during reads. See the
+[Deep Pruning Verification milestone](../../../MILESTONES.md#-m115--deep-pruning-verification-combined--rowgroup--page-index--bloom-filter)
+for a discussion of the pruning hierarchy.
 
 ## API Reference
 

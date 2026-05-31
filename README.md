@@ -137,17 +137,20 @@ make verify
 ```
 cryolite/
 ├── src/main/java/io/cryolite/          # Main source code
-│   ├── CryoliteEngine.java             # Main entry point (create/close/SQL session)
+│   ├── CryoliteEngine.java             # Main entry point (catalog / scan / SQL)
 │   ├── CryoliteConfig.java             # Immutable configuration (Builder pattern)
 │   ├── arrow/                          # Arrow integration (schema/record conversion)
 │   ├── catalog/                        # Catalog management (Polaris REST)
-│   ├── data/                           # Data I/O (TableWriter, TableReader)
-│   └── sql/                            # SQL layer (Calcite parser, DDL, DML)
+│   ├── data/                           # Data I/O (TableWriter, TableReader, TableScanner)
+│   ├── filter/                         # Predicate model (BatchPredicate, ComparisonPredicate, AndPredicate)
+│   └── sql/                            # SQL layer (Calcite parser, DDL, DML, SELECT)
 │       ├── ddl/                        # CREATE TABLE interpreter
 │       ├── dml/                        # INSERT INTO interpreter
-│       ├── type/                       # Type mapping (Calcite ↔ Iceberg)
+│       ├── filter/                     # SQL WHERE → BatchPredicate conversion
+│       ├── query/                      # SELECT interpreter with pushdown
+│       ├── type/                       # Type mapping (Calcite ↔ Iceberg ↔ Arrow)
 │       └── util/                       # SQL utilities (identifier resolution)
-├── src/test/java/io/cryolite/          # Tests (144 tests, 85%+ coverage)
+├── src/test/java/io/cryolite/          # Tests (233 tests, 85%+ coverage)
 ├── docs/                               # Detailed documentation
 ├── pom.xml                             # Maven configuration
 ├── Makefile                            # Centralized build commands
@@ -163,7 +166,7 @@ For detailed documentation, see the [docs/](docs/) directory.
 
 See [MILESTONES.md](MILESTONES.md) for the full roadmap.
 
-**Current status:** M0–M6 completed (Project Foundation → SQL INSERT). Next: M7 (SQL SELECT).
+**Current status:** M0–M11.5 completed (Project Foundation → Deep Pruning Verification). Next: M12 (SQL OR / NOT).
 
 ## Contributing
 

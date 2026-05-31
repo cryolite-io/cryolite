@@ -4,7 +4,7 @@ This guide describes the development workflow for CRYOLITE contributors.
 
 ## Prerequisites
 
-- **Java 21+** - Required for building and running
+- **Java 25+** - Required for building and running
 - **Maven 3.9+** - Build tool
 - **Docker & Docker Compose** - For integration tests
 - **Git** - Version control

@@ -4,7 +4,6 @@ This directory contains detailed documentation for the CRYOLITE project.
 
 ## Documentation Structure
 
-- **[Architecture](architecture/)** - System architecture and design decisions
 - **[API Reference](api/)** - Detailed API documentation
 - **[Testing](testing/)** - Testing infrastructure and helpers
 - **[Development](development/)** - Development guides and workflows
@@ -12,13 +11,20 @@ This directory contains detailed documentation for the CRYOLITE project.
 ## Quick Links
 
 ### Core Components
-- [CryoliteEngine](api/core/CryoliteEngine.md) - Main entry point
+- [CryoliteEngine](api/core/CryoliteEngine.md) - Main entry point (catalog / scan / SQL)
 - [CryoliteConfig](api/core/CryoliteConfig.md) - Configuration management
 - [CatalogManager](api/core/CatalogManager.md) - Catalog connection management
 
 ### Data Operations
-- [TableWriter](api/data/TableWriter.md) - Low-level data write operations
-- [TableReader](api/data/TableReader.md) - Low-level vectorized data read operations
+- [TableWriter](api/data/TableWriter.md) - Low-level data write operations (Iceberg snapshots)
+- [TableReader](api/data/TableReader.md) - Low-level vectorized data read operations (Arrow)
+- [TableScanner](api/data/TableScanner.md) - Filtered scans with pushdown and residual evaluation
+
+### Filter Model
+- [filter package](api/filter/README.md) - `BatchPredicate`, `ComparisonPredicate`, `AndPredicate`, `ArrowBatchFilter`
+
+### SQL Layer
+- [sql package](api/sql/README.md) - `SqlSession`, DDL/DML/query interpreters, WHERE conversion, type mapping
 
 ### Arrow Integration
 - [SchemaConverter](api/arrow/SchemaConverter.md) - Iceberg → Arrow schema conversion
@@ -43,9 +49,10 @@ CRYOLITE is an embedded Apache Iceberg table/query engine with the following key
 ## Technology Stack
 
 - **Apache Iceberg 1.10.1** - Table format
-- **Apache Polaris 1.3.0** - REST Catalog
-- **Apache Calcite 1.41.0** - SQL parser and optimizer (planned)
-- **Apache Arrow 18.3.0** - Vectorized execution (active)
+- **Apache Polaris 1.3.0** - REST Catalog (development)
+- **Apache Calcite 1.41.0** - SQL parser, planner and optimizer (active)
+- **Apache Arrow 18.3.0** - Vectorized execution (active, via Iceberg's `VectorizedTableScanIterable`)
+- **Apache Parquet** - Columnar file format (via Iceberg)
 - **AWS SDK 2.41.19** - S3-compatible storage access
 - **MinIO** - S3-compatible object storage (development)
 

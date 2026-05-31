@@ -137,6 +137,47 @@ String namespace = "test_ns_" + uniqueSuffix();
 String tableName = "test_table_" + uniqueSuffix();
 ```
 
+---
+
+#### `openParquetFooter(FileIO, String)`
+
+```java
+protected ParquetFileReader openParquetFooter(FileIO io, String dataFileLocation) throws IOException
+```
+
+Downloads a remote Parquet data file (e.g. on S3 / MinIO) to a local temporary file and
+returns an open `ParquetFileReader` positioned on that local copy. This is the helper used
+by deep-pruning verification tests (M11.5) to inspect Parquet footers, row groups,
+`ColumnIndex` / `OffsetIndex` data, and bloom filters.
+
+The local temp file is registered for deletion on JVM exit. The returned reader is owned
+by the caller and must be closed.
+
+**Why a local copy?** The Hadoop-backed `ParquetIO.file(...)` reader pulls in JDK
+`Subject` APIs that have been restricted in modern JDKs. Reading from a `LocalInputFile`
+keeps the helper portable across JDK versions and CI environments.
+
+**Parameters**:
+- `io` - The table's `FileIO`, used to read the remote file
+- `dataFileLocation` - The absolute location of the Parquet file (e.g. `s3://bucket/path/...parquet`)
+
+**Returns**: An open `ParquetFileReader` against a local copy of the Parquet file
+
+**Throws**:
+- `IOException` - If downloading or opening the file fails
+
+**Usage Example**:
+```java
+DataFile dataFile = ...; // e.g. from writer.getCommittedFiles()
+try (ParquetFileReader reader = openParquetFooter(table.io(), dataFile.location())) {
+    ParquetMetadata footer = reader.getFooter();
+    List<BlockMetaData> rowGroups = footer.getBlocks();
+    // assert on row groups, column indexes, bloom filters, ...
+}
+```
+
+---
+
 ## Design Decisions
 
 ### Why Abstract Class Instead of Interface?

@@ -17,24 +17,43 @@ import org.apache.iceberg.io.CloseableIterable;
 /**
  * CRYOLITE Runs Your Open Lightweight Iceberg Table Engine.
  *
- * <p>CryoliteEngine is the main entry point for the embedded Iceberg table engine. It provides
- * access to the Iceberg Catalog for all table and namespace operations.
+ * <p>CryoliteEngine is the main entry point for the embedded Iceberg table and query engine. It
+ * exposes three levels of API:
  *
- * <p>This is an embedded library - no CLI, no server, no REST service. It is designed to be used
- * directly from Java applications.
+ * <ul>
+ *   <li><b>Catalog API</b> ({@link #getCatalog()}): direct access to the Iceberg REST catalog for
+ *       namespace and table DDL operations.
+ *   <li><b>Low-Level API</b> ({@link #scan}, {@link #append}): read and write Iceberg tables as
+ *       Arrow columnar batches or Iceberg records, with filter pushdown and column projection.
+ *   <li><b>SQL API</b> ({@link #createSqlSession()}): execute SQL statements (DDL + DML + SELECT)
+ *       parsed and optimised by Apache Calcite; results are returned as Arrow batches.
+ * </ul>
  *
- * <p>Usage example:
+ * <p>This is an embedded library — no CLI, no server, no REST service. Designed to be used directly
+ * from Java applications.
+ *
+ * <p>Usage — SQL API:
  *
  * <pre>{@code
  * CryoliteEngine engine = new CryoliteEngine(config);
- * Catalog catalog = engine.getCatalog();
+ * try (SqlSession session = engine.createSqlSession()) {
+ *   session.execute("CREATE TABLE my_ns.orders (id BIGINT NOT NULL, amount DOUBLE)");
+ *   session.execute("INSERT INTO my_ns.orders VALUES (1, 99.9)");
+ *   try (CloseableIterable<VectorSchemaRoot> rows = session.query("SELECT * FROM my_ns.orders")) {
+ *     for (VectorSchemaRoot batch : rows) { /* process batch *\/ }
+ *   }
+ * }
+ * engine.close();
+ * }</pre>
  *
- * // Namespace operations (cast to SupportsNamespaces)
- * SupportsNamespaces nsCatalog = (SupportsNamespaces) catalog;
- * nsCatalog.createNamespace(Namespace.of("my_namespace"), Map.of());
+ * <p>Usage — Low-Level API:
  *
- * // Table operations
- * catalog.createTable(TableIdentifier.of("my_namespace", "my_table"), schema);
+ * <pre>{@code
+ * TableIdentifier tableId = TableIdentifier.of("my_ns", "orders");
+ * BatchPredicate filter = new ComparisonPredicate("amount", ComparisonOperator.GT, 50.0);
+ * try (CloseableIterable<VectorSchemaRoot> batches = engine.scan(tableId, filter)) {
+ *   for (VectorSchemaRoot batch : batches) { /* process batch *\/ }
+ * }
  * }</pre>
  *
  * @since 0.1.0
