@@ -145,8 +145,8 @@ class ComparisonPredicateTest {
 
       ComparisonPredicate pred = new ComparisonPredicate("age", ComparisonOperator.LESS_THAN, 25);
       BitSet result = pred.evaluate(root);
-      assertTrue(result.get(0));  // 10 < 25
-      assertTrue(result.get(1));  // 20 < 25
+      assertTrue(result.get(0)); // 10 < 25
+      assertTrue(result.get(1)); // 20 < 25
       assertFalse(result.get(2)); // 30 >= 25
     }
   }
@@ -172,8 +172,8 @@ class ComparisonPredicateTest {
           new ComparisonPredicate("score", ComparisonOperator.GREATER_THAN, 2.0);
       BitSet result = pred.evaluate(root);
       assertFalse(result.get(0)); // 1.5 <= 2.0
-      assertTrue(result.get(1));  // 3.0 > 2.0
-      assertTrue(result.get(2));  // 4.5 > 2.0
+      assertTrue(result.get(1)); // 3.0 > 2.0
+      assertTrue(result.get(2)); // 4.5 > 2.0
     }
   }
 
@@ -193,14 +193,32 @@ class ComparisonPredicateTest {
       nameVec.setValueCount(1);
       root.setRowCount(1);
 
-      assertFalse(new ComparisonPredicate("id", ComparisonOperator.NOT_EQUALS, 10L).evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("id", ComparisonOperator.NOT_EQUALS, 5L).evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("id", ComparisonOperator.LESS_THAN_OR_EQUAL, 10L).evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("id", ComparisonOperator.LESS_THAN_OR_EQUAL, 9L).evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("id", ComparisonOperator.GREATER_THAN, 9L).evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("id", ComparisonOperator.GREATER_THAN, 10L).evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("id", ComparisonOperator.GREATER_THAN_OR_EQUAL, 10L).evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("id", ComparisonOperator.GREATER_THAN_OR_EQUAL, 11L).evaluate(root).get(0));
+      assertFalse(
+          new ComparisonPredicate("id", ComparisonOperator.NOT_EQUALS, 10L).evaluate(root).get(0));
+      assertTrue(
+          new ComparisonPredicate("id", ComparisonOperator.NOT_EQUALS, 5L).evaluate(root).get(0));
+      assertTrue(
+          new ComparisonPredicate("id", ComparisonOperator.LESS_THAN_OR_EQUAL, 10L)
+              .evaluate(root)
+              .get(0));
+      assertFalse(
+          new ComparisonPredicate("id", ComparisonOperator.LESS_THAN_OR_EQUAL, 9L)
+              .evaluate(root)
+              .get(0));
+      assertTrue(
+          new ComparisonPredicate("id", ComparisonOperator.GREATER_THAN, 9L).evaluate(root).get(0));
+      assertFalse(
+          new ComparisonPredicate("id", ComparisonOperator.GREATER_THAN, 10L)
+              .evaluate(root)
+              .get(0));
+      assertTrue(
+          new ComparisonPredicate("id", ComparisonOperator.GREATER_THAN_OR_EQUAL, 10L)
+              .evaluate(root)
+              .get(0));
+      assertFalse(
+          new ComparisonPredicate("id", ComparisonOperator.GREATER_THAN_OR_EQUAL, 11L)
+              .evaluate(root)
+              .get(0));
     }
   }
 
@@ -220,15 +238,40 @@ class ComparisonPredicateTest {
       scoreVec.setValueCount(1);
       root.setRowCount(1);
 
-      assertTrue(new ComparisonPredicate("score", ComparisonOperator.EQUALS, 5.0).evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("score", ComparisonOperator.NOT_EQUALS, 5.0).evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("score", ComparisonOperator.NOT_EQUALS, 3.0).evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("score", ComparisonOperator.LESS_THAN, 6.0).evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("score", ComparisonOperator.LESS_THAN, 5.0).evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("score", ComparisonOperator.LESS_THAN_OR_EQUAL, 5.0).evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("score", ComparisonOperator.LESS_THAN_OR_EQUAL, 4.0).evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("score", ComparisonOperator.GREATER_THAN_OR_EQUAL, 5.0).evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("score", ComparisonOperator.GREATER_THAN_OR_EQUAL, 6.0).evaluate(root).get(0));
+      assertTrue(
+          new ComparisonPredicate("score", ComparisonOperator.EQUALS, 5.0).evaluate(root).get(0));
+      assertFalse(
+          new ComparisonPredicate("score", ComparisonOperator.NOT_EQUALS, 5.0)
+              .evaluate(root)
+              .get(0));
+      assertTrue(
+          new ComparisonPredicate("score", ComparisonOperator.NOT_EQUALS, 3.0)
+              .evaluate(root)
+              .get(0));
+      assertTrue(
+          new ComparisonPredicate("score", ComparisonOperator.LESS_THAN, 6.0)
+              .evaluate(root)
+              .get(0));
+      assertFalse(
+          new ComparisonPredicate("score", ComparisonOperator.LESS_THAN, 5.0)
+              .evaluate(root)
+              .get(0));
+      assertTrue(
+          new ComparisonPredicate("score", ComparisonOperator.LESS_THAN_OR_EQUAL, 5.0)
+              .evaluate(root)
+              .get(0));
+      assertFalse(
+          new ComparisonPredicate("score", ComparisonOperator.LESS_THAN_OR_EQUAL, 4.0)
+              .evaluate(root)
+              .get(0));
+      assertTrue(
+          new ComparisonPredicate("score", ComparisonOperator.GREATER_THAN_OR_EQUAL, 5.0)
+              .evaluate(root)
+              .get(0));
+      assertFalse(
+          new ComparisonPredicate("score", ComparisonOperator.GREATER_THAN_OR_EQUAL, 6.0)
+              .evaluate(root)
+              .get(0));
     }
   }
 
@@ -248,15 +291,42 @@ class ComparisonPredicateTest {
       nameVec.setValueCount(1);
       root.setRowCount(1);
 
-      assertTrue(new ComparisonPredicate("name", ComparisonOperator.EQUALS, "Charlie").evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("name", ComparisonOperator.NOT_EQUALS, "Charlie").evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("name", ComparisonOperator.NOT_EQUALS, "Alice").evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("name", ComparisonOperator.LESS_THAN, "Zara").evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("name", ComparisonOperator.LESS_THAN, "Alice").evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("name", ComparisonOperator.LESS_THAN_OR_EQUAL, "Charlie").evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("name", ComparisonOperator.LESS_THAN_OR_EQUAL, "Bob").evaluate(root).get(0));
-      assertTrue(new ComparisonPredicate("name", ComparisonOperator.GREATER_THAN_OR_EQUAL, "Charlie").evaluate(root).get(0));
-      assertFalse(new ComparisonPredicate("name", ComparisonOperator.GREATER_THAN_OR_EQUAL, "Zara").evaluate(root).get(0));
+      assertTrue(
+          new ComparisonPredicate("name", ComparisonOperator.EQUALS, "Charlie")
+              .evaluate(root)
+              .get(0));
+      assertFalse(
+          new ComparisonPredicate("name", ComparisonOperator.NOT_EQUALS, "Charlie")
+              .evaluate(root)
+              .get(0));
+      assertTrue(
+          new ComparisonPredicate("name", ComparisonOperator.NOT_EQUALS, "Alice")
+              .evaluate(root)
+              .get(0));
+      assertTrue(
+          new ComparisonPredicate("name", ComparisonOperator.LESS_THAN, "Zara")
+              .evaluate(root)
+              .get(0));
+      assertFalse(
+          new ComparisonPredicate("name", ComparisonOperator.LESS_THAN, "Alice")
+              .evaluate(root)
+              .get(0));
+      assertTrue(
+          new ComparisonPredicate("name", ComparisonOperator.LESS_THAN_OR_EQUAL, "Charlie")
+              .evaluate(root)
+              .get(0));
+      assertFalse(
+          new ComparisonPredicate("name", ComparisonOperator.LESS_THAN_OR_EQUAL, "Bob")
+              .evaluate(root)
+              .get(0));
+      assertTrue(
+          new ComparisonPredicate("name", ComparisonOperator.GREATER_THAN_OR_EQUAL, "Charlie")
+              .evaluate(root)
+              .get(0));
+      assertFalse(
+          new ComparisonPredicate("name", ComparisonOperator.GREATER_THAN_OR_EQUAL, "Zara")
+              .evaluate(root)
+              .get(0));
     }
   }
 
@@ -277,10 +347,11 @@ class ComparisonPredicateTest {
       ratioVec.setValueCount(2);
       root.setRowCount(2);
 
-      ComparisonPredicate pred = new ComparisonPredicate("ratio", ComparisonOperator.GREATER_THAN, 1.0);
+      ComparisonPredicate pred =
+          new ComparisonPredicate("ratio", ComparisonOperator.GREATER_THAN, 1.0);
       BitSet result = pred.evaluate(root);
       assertFalse(result.get(0)); // 0.5 <= 1.0
-      assertTrue(result.get(1));  // 1.5 > 1.0
+      assertTrue(result.get(1)); // 1.5 > 1.0
     }
   }
 
@@ -302,9 +373,10 @@ class ComparisonPredicateTest {
       root.setRowCount(2);
 
       // BitVector.getObject() returns Boolean; operator.apply() handles it via Comparable fallback
-      ComparisonPredicate pred = new ComparisonPredicate("active", ComparisonOperator.EQUALS, Boolean.TRUE);
+      ComparisonPredicate pred =
+          new ComparisonPredicate("active", ComparisonOperator.EQUALS, Boolean.TRUE);
       BitSet result = pred.evaluate(root);
-      assertTrue(result.get(0));  // true == true
+      assertTrue(result.get(0)); // true == true
       assertFalse(result.get(1)); // false != true
     }
   }

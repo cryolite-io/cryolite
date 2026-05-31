@@ -80,7 +80,8 @@ public enum ComparisonOperator {
    * switch is paid only once rather than on each iteration.
    *
    * @param literal the long literal to compare against
-   * @return a primitive predicate for use in tight loops over {@code BigIntVector} / {@code IntVector}
+   * @return a primitive predicate for use in tight loops over {@code BigIntVector} / {@code
+   *     IntVector}
    */
   public LongPredicate asLongPredicate(long literal) {
     return switch (this) {
