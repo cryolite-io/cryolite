@@ -24,7 +24,7 @@
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <!-- Core dependencies aligned with Iceberg 1.10.1 -->
-        <iceberg.version>1.10.1</iceberg.version>
+        <iceberg.version>1.11.0</iceberg.version>
         <calcite.version>1.41.0</calcite.version>
         <arrow.version>18.3.0</arrow.version>
         <hadoop.version>3.4.2</hadoop.version>
